@@ -26,10 +26,11 @@ describe("Dice Logic & Real-Time Socket.io Server (Task 5)", () => {
 
   beforeEach(async () => {
     process.env.DATABASE_PATH = TEST_DB_PATH;
+    closeDb();
     if (fs.existsSync(TEST_DB_PATH)) {
       fs.rmSync(TEST_DB_PATH, { force: true });
     }
-    db = getDb(TEST_DB_PATH);
+    db = getDb();
     testUser = await registerUser("Gimli", "gimli_axe", "barukKhazad123", db);
     testRoom = await createRoom("Moria Chamber", null, testUser.id, db);
   });
@@ -128,6 +129,18 @@ describe("Dice Logic & Real-Time Socket.io Server (Task 5)", () => {
       expect(result.isCritHit).toBe(false);
       expect(result.isCritFail).toBe(false);
       expect(result.total).toBe(15);
+    });
+
+    it("gives Nat 20 priority when both 20 and 1 appear on multi-dice d20 rolls", () => {
+      let callCount = 0;
+      const mockRng = () => {
+        callCount++;
+        return callCount === 1 ? 0.999 : 0.0;
+      };
+      const result = calculateRoll("d20", 2, 0, mockRng);
+      expect(result.individualResults).toEqual([20, 1]);
+      expect(result.isCritHit).toBe(true);
+      expect(result.isCritFail).toBe(false);
     });
 
     it("does NOT trigger crit hit or crit fail for non-d20 dice", () => {
@@ -264,7 +277,7 @@ describe("Dice Logic & Real-Time Socket.io Server (Task 5)", () => {
     beforeEach(async () => {
       // Create HTTP server and attach Socket.io
       httpServer = http.createServer();
-      ioServer = initSocketServer(httpServer);
+      ioServer = initSocketServer(httpServer, { calculateRoll, saveRollToDb });
 
       await new Promise<void>((resolve) => {
         httpServer.listen(0, () => {
@@ -453,6 +466,57 @@ describe("Dice Logic & Real-Time Socket.io Server (Task 5)", () => {
 
       const errorData = await errorPromise;
       expect(errorData.error).toMatch(/invalid dice type/i);
+    });
+
+    it("rejects roll_dice if socket has not joined the room", async () => {
+      clientSocket1 = ioc(`http://localhost:${serverPort}`, { transports: ["websocket"] });
+      await new Promise<void>((res) => clientSocket1.on("connect", res));
+
+      const errorPromise = new Promise<{ error: string }>((resolve) => {
+        clientSocket1.on("error", resolve);
+      });
+
+      // Attempt to roll without join_room
+      clientSocket1.emit("roll_dice", {
+        roomId: testRoom.id,
+        diceType: "d20",
+        count: 1,
+        modifier: 0,
+      });
+
+      const errorData = await errorPromise;
+      expect(errorData.error).toMatch(/must join the room before rolling/i);
+    });
+
+    it("derives rolling user identity from room membership rather than unverified payload", async () => {
+      clientSocket1 = ioc(`http://localhost:${serverPort}`, { transports: ["websocket"] });
+      await new Promise<void>((res) => clientSocket1.on("connect", res));
+
+      // Join room as testUser (Gimli)
+      clientSocket1.emit("join_room", {
+        roomId: testRoom.id,
+        user: { id: testUser.id, name: testUser.name, username: testUser.username },
+      });
+
+      await new Promise<void>((res) => clientSocket1.once("room_users_updated", () => res()));
+
+      const rollPromise = new Promise<any>((res) => {
+        clientSocket1.on("dice_rolled", res);
+      });
+
+      // Try spoofing user in roll_dice payload as Sauron
+      clientSocket1.emit("roll_dice", {
+        roomId: testRoom.id,
+        diceType: "d6",
+        count: 1,
+        modifier: 0,
+        user: { id: "spoofed-id", name: "Sauron", username: "dark_lord" },
+      });
+
+      const rollData = await rollPromise;
+      // Must use verified user from room membership
+      expect(rollData.user.id).toBe(testUser.id);
+      expect(rollData.user.name).toBe(testUser.name);
     });
 
     it("cleans up user and broadcasts room_users_updated on leave_room and disconnect", async () => {

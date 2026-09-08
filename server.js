@@ -2,7 +2,8 @@ const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
 const { Server } = require("socket.io");
-const { calculateRoll, saveRollToDb } = require("./lib/dice.ts");
+const jiti = require("jiti")(__filename);
+const { calculateRoll, saveRollToDb } = jiti("./lib/dice");
 
 // In-memory room members tracking
 // roomUsers: Map<roomId, Map<socketId, { id, name, username }>>
@@ -27,6 +28,9 @@ function getRoomUsers(roomId) {
 }
 
 function initSocketServer(httpServer, options = {}) {
+  const calcRoll = options.calculateRoll || calculateRoll;
+  const saveRoll = options.saveRollToDb || saveRollToDb;
+
   const io = new Server(httpServer, {
     cors: {
       origin: "*",
@@ -72,29 +76,27 @@ function initSocketServer(httpServer, options = {}) {
           throw new Error("Invalid roll payload");
         }
 
-        const { roomId, diceType, count, modifier, user } = data;
+        const { roomId, diceType, count, modifier } = data;
 
         if (!roomId) {
           throw new Error("Room ID is required");
         }
 
-        let rollingUser = user;
-        if (!rollingUser || !rollingUser.id || !rollingUser.name) {
-          const roomMap = roomUsers.get(roomId);
-          if (roomMap && roomMap.has(socket.id)) {
-            rollingUser = roomMap.get(socket.id);
-          }
+        // Verify socket is an active member of the room
+        const roomMap = roomUsers.get(roomId);
+        const memberUser = roomMap ? roomMap.get(socket.id) : null;
+        if (!memberUser) {
+          throw new Error("You must join the room before rolling dice");
         }
 
-        if (!rollingUser || !rollingUser.id || !rollingUser.name) {
-          throw new Error("User information (id and name) is required");
-        }
+        // Derive user from verified in-memory room membership
+        const rollingUser = memberUser;
 
         const parsedCount = count !== undefined ? Number(count) : 1;
         const parsedModifier = modifier !== undefined ? Number(modifier) : 0;
 
-        const roll = calculateRoll(diceType, parsedCount, parsedModifier);
-        const saved = saveRollToDb(roomId, rollingUser, roll);
+        const roll = calcRoll(diceType, parsedCount, parsedModifier);
+        const saved = saveRoll(roomId, rollingUser, roll);
 
         const payload = {
           id: saved.id,

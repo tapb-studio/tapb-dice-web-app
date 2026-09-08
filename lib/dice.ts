@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import Database from "better-sqlite3";
-import { getDb } from "./db.ts";
+import { getDb } from "./db";
 
 export type DiceType = "d4" | "d6" | "d8" | "d10" | "d12" | "d20" | "d100";
 
@@ -110,8 +110,10 @@ export function calculateRoll(
     notation += `${modifier}`;
   }
 
-  const isCritHit = normalizedType === "d20" && individualResults.includes(20);
-  const isCritFail = normalizedType === "d20" && individualResults.includes(1);
+  const hasNat20 = normalizedType === "d20" && individualResults.includes(20);
+  const hasNat1 = normalizedType === "d20" && individualResults.includes(1);
+  const isCritHit = hasNat20;
+  const isCritFail = !hasNat20 && hasNat1;
 
   return {
     diceType: normalizedType,

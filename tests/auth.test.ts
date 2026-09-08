@@ -94,7 +94,7 @@ describe("Authentication & Password Management", () => {
     it("throws an error in production environment if JWT_SECRET is unset", () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        process.env.NODE_ENV = "production";
+        (process.env as any).NODE_ENV = "production";
         delete process.env.JWT_SECRET;
 
         expect(() => createToken({ id: "user-1" })).toThrow(
@@ -104,7 +104,7 @@ describe("Authentication & Password Management", () => {
           /JWT_SECRET must be set in production environment/i
         );
       } finally {
-        process.env.NODE_ENV = originalEnv;
+        (process.env as any).NODE_ENV = originalEnv;
         process.env.JWT_SECRET = "test-jwt-secret-key";
       }
     });
