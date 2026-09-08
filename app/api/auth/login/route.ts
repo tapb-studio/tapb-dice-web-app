@@ -6,17 +6,32 @@ import {
 } from "@/lib/auth";
 
 export async function POST(req: NextRequest | Request) {
+  let body: any;
   try {
-    const body = await req.json();
-    const { username, password } = body || {};
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
 
-    if (!username || !password) {
-      return NextResponse.json(
-        { error: "Username and password are required" },
-        { status: 400 }
-      );
-    }
+  const { username, password } = body || {};
 
+  if (
+    !username ||
+    typeof username !== "string" ||
+    !username.trim() ||
+    !password ||
+    typeof password !== "string"
+  ) {
+    return NextResponse.json(
+      { error: "Username and password are required" },
+      { status: 400 }
+    );
+  }
+
+  try {
     const { user, token } = await loginUser(username, password);
     const response = NextResponse.json({ user }, { status: 200 });
     response.cookies.set(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS);

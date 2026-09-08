@@ -32,6 +32,9 @@ describe("Authentication & Password Management", () => {
   });
 
   afterEach(() => {
+    if (db && db.open) {
+      db.close();
+    }
     closeDb();
     if (fs.existsSync(TEST_DB_PATH)) {
       fs.rmSync(TEST_DB_PATH, { force: true });
@@ -86,6 +89,24 @@ describe("Authentication & Password Management", () => {
       expect(verifyToken("invalid.token.here")).toBeNull();
       expect(verifyToken("not-even-a-jwt")).toBeNull();
       expect(verifyToken("")).toBeNull();
+    });
+
+    it("throws an error in production environment if JWT_SECRET is unset", () => {
+      const originalEnv = process.env.NODE_ENV;
+      try {
+        process.env.NODE_ENV = "production";
+        delete process.env.JWT_SECRET;
+
+        expect(() => createToken({ id: "user-1" })).toThrow(
+          /JWT_SECRET must be set in production environment/i
+        );
+        expect(() => verifyToken("some.token.value")).toThrow(
+          /JWT_SECRET must be set in production environment/i
+        );
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+        process.env.JWT_SECRET = "test-jwt-secret-key";
+      }
     });
   });
 
@@ -205,7 +226,7 @@ describe("Authentication & Password Management", () => {
       expect(cookie?.httpOnly).toBe(true);
     });
 
-    it("POST /api/auth/register rejects missing fields and duplicates", async () => {
+    it("POST /api/auth/register rejects missing fields, malformed body, and duplicates", async () => {
       // Missing fields
       const badReq = new NextRequest("http://localhost:3000/api/auth/register", {
         method: "POST",
@@ -213,6 +234,14 @@ describe("Authentication & Password Management", () => {
       });
       const badRes = await registerHandler(badReq);
       expect(badRes.status).toBe(400);
+
+      // Malformed body
+      const malformedReq = new NextRequest("http://localhost:3000/api/auth/register", {
+        method: "POST",
+        body: "{malformed json",
+      });
+      const malformedRes = await registerHandler(malformedReq);
+      expect(malformedRes.status).toBe(400);
 
       // Register first
       const req1 = new NextRequest("http://localhost:3000/api/auth/register", {
@@ -259,6 +288,42 @@ describe("Authentication & Password Management", () => {
       expect(cookie).toBeDefined();
       expect(cookie?.value).toBeTruthy();
       expect(cookie?.httpOnly).toBe(true);
+    });
+
+    it("POST /api/auth/login differentiates 400 Bad Request from 401 Unauthorized", async () => {
+      await registerUser("Eskel", "eskel", "wolfSchool123", db);
+
+      // Missing username -> 400
+      const noUserReq = new NextRequest("http://localhost:3000/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ password: "wolfSchool123" }),
+      });
+      const noUserRes = await loginHandler(noUserReq);
+      expect(noUserRes.status).toBe(400);
+
+      // Missing password -> 400
+      const noPassReq = new NextRequest("http://localhost:3000/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ username: "eskel" }),
+      });
+      const noPassRes = await loginHandler(noPassReq);
+      expect(noPassRes.status).toBe(400);
+
+      // Malformed JSON -> 400
+      const malformedReq = new NextRequest("http://localhost:3000/api/auth/login", {
+        method: "POST",
+        body: "{not valid json",
+      });
+      const malformedRes = await loginHandler(malformedReq);
+      expect(malformedRes.status).toBe(400);
+
+      // Invalid credentials -> 401
+      const wrongReq = new NextRequest("http://localhost:3000/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ username: "eskel", password: "wrongPassword" }),
+      });
+      const wrongRes = await loginHandler(wrongReq);
+      expect(wrongRes.status).toBe(401);
     });
 
     it("GET /api/auth/me returns current user or 401 unauthorized", async () => {

@@ -29,14 +29,25 @@ export async function verifyPassword(
   return bcrypt.compare(password, hash);
 }
 
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("JWT_SECRET must be set in production environment");
+    }
+    return "tapb-secret-key-change-in-prod";
+  }
+  return secret;
+}
+
 export function createToken(payload: object): string {
-  const secret = process.env.JWT_SECRET || "tapb-secret-key-change-in-prod";
+  const secret = getJwtSecret();
   return jwt.sign(payload, secret, { expiresIn: "7d" });
 }
 
 export function verifyToken<T = any>(token: string): T | null {
   if (!token) return null;
-  const secret = process.env.JWT_SECRET || "tapb-secret-key-change-in-prod";
+  const secret = getJwtSecret();
   try {
     return jwt.verify(token, secret) as T;
   } catch {

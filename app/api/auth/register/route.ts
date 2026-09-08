@@ -7,17 +7,35 @@ import {
 } from "@/lib/auth";
 
 export async function POST(req: NextRequest | Request) {
+  let body: any;
   try {
-    const body = await req.json();
-    const { name, username, password } = body || {};
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
 
-    if (!name || !username || !password) {
-      return NextResponse.json(
-        { error: "Name, username, and password are required" },
-        { status: 400 }
-      );
-    }
+  const { name, username, password } = body || {};
 
+  if (
+    !name ||
+    typeof name !== "string" ||
+    !name.trim() ||
+    !username ||
+    typeof username !== "string" ||
+    !username.trim() ||
+    !password ||
+    typeof password !== "string"
+  ) {
+    return NextResponse.json(
+      { error: "Name, username, and password are required" },
+      { status: 400 }
+    );
+  }
+
+  try {
     const user = await registerUser(name, username, password);
     const token = createToken({
       id: user.id,
