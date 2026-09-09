@@ -5,7 +5,7 @@ import http from "http";
 import { AddressInfo } from "net";
 import { io as ioc, Socket as ClientSocket } from "socket.io-client";
 import { getDb, closeDb } from "@/lib/db";
-import { registerUser } from "@/lib/auth";
+import { registerUser, createToken } from "@/lib/auth";
 import { createRoom } from "@/lib/rooms";
 import {
   calculateRoll,
@@ -588,6 +588,84 @@ describe("Dice Logic & Real-Time Socket.io Server (Task 5)", () => {
       const afterDisconnect = await client1DisconnectUpdate;
       expect(afterDisconnect.users).toHaveLength(1);
       expect(afterDisconnect.users[0].id).toBe(testUser.id);
+    });
+
+    it("authenticates socket with JWT auth.token and enforces authenticated identity over spoofed join payload", async () => {
+      const token = createToken({
+        id: testUser.id,
+        name: testUser.name,
+        username: testUser.username,
+      });
+
+      clientSocket1 = ioc(`http://localhost:${serverPort}`, {
+        transports: ["websocket"],
+        auth: { token },
+      });
+
+      await new Promise<void>((res) => clientSocket1.on("connect", res));
+
+      const usersUpdatedPromise = new Promise<{ users: any[] }>((resolve) => {
+        clientSocket1.on("room_users_updated", resolve);
+      });
+
+      // Attempt to spoof another user in join_room payload
+      clientSocket1.emit("join_room", {
+        roomId: testRoom.id,
+        user: { id: "spoofed-user-id", name: "Malicious User", username: "bad_actor" },
+      });
+
+      const updated = await usersUpdatedPromise;
+      // Must be testUser identity from token
+      expect(updated.users).toHaveLength(1);
+      expect(updated.users[0].id).toBe(testUser.id);
+      expect(updated.users[0].name).toBe(testUser.name);
+
+      // Now roll dice and ensure roll user is testUser
+      const rollPromise = new Promise<any>((resolve) => {
+        clientSocket1.on("dice_rolled", resolve);
+      });
+
+      clientSocket1.emit("roll_dice", {
+        roomId: testRoom.id,
+        diceType: "d20",
+        count: 1,
+        modifier: 0,
+        user: { id: "another-spoof", name: "Evil DM" },
+      });
+
+      const rollResult = await rollPromise;
+      expect(rollResult.user.id).toBe(testUser.id);
+      expect(rollResult.user.name).toBe(testUser.name);
+    });
+
+    it("authenticates socket via cookie in handshake headers", async () => {
+      const token = createToken({
+        id: testUser.id,
+        name: testUser.name,
+        username: testUser.username,
+      });
+
+      clientSocket1 = ioc(`http://localhost:${serverPort}`, {
+        transports: ["websocket"],
+        extraHeaders: {
+          cookie: `token=${token}`,
+        },
+      });
+
+      await new Promise<void>((res) => clientSocket1.on("connect", res));
+
+      const usersUpdatedPromise = new Promise<{ users: any[] }>((resolve) => {
+        clientSocket1.on("room_users_updated", resolve);
+      });
+
+      clientSocket1.emit("join_room", {
+        roomId: testRoom.id,
+      });
+
+      const updated = await usersUpdatedPromise;
+      expect(updated.users).toHaveLength(1);
+      expect(updated.users[0].id).toBe(testUser.id);
+      expect(updated.users[0].name).toBe(testUser.name);
     });
   });
 });

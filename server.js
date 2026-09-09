@@ -1,9 +1,11 @@
 const { createServer } = require("http");
 const { parse } = require("url");
+const crypto = require("crypto");
 const next = require("next");
 const { Server } = require("socket.io");
 const jiti = require("jiti")(__filename);
 const { calculateRoll, saveRollToDb } = jiti("./lib/dice");
+const { verifyToken, AUTH_COOKIE_NAME } = jiti("./lib/auth");
 
 // In-memory room members tracking
 // roomUsers: Map<roomId, Map<socketId, { id, name, username }>>
@@ -30,6 +32,10 @@ function getRoomUsers(roomId) {
 function initSocketServer(httpServer, options = {}) {
   const calcRoll = options.calculateRoll || calculateRoll;
   const saveRoll = options.saveRollToDb || saveRollToDb;
+  const verifyTok = options.verifyToken || verifyToken;
+  const cookieName = options.cookieName || AUTH_COOKIE_NAME || "token";
+  const cryptoRng =
+    options.rng || (() => crypto.randomInt(0, 10000000) / 10000000);
 
   const io = new Server(httpServer, {
     cors: {
@@ -39,12 +45,61 @@ function initSocketServer(httpServer, options = {}) {
     ...options,
   });
 
+  // Socket.io Authentication Middleware: inspect cookie or auth token, validate JWT
+  io.use((socket, next) => {
+    try {
+      let token = socket.handshake?.auth?.token;
+      if (!token && socket.handshake?.headers?.cookie) {
+        const cookieHeader = socket.handshake.headers.cookie;
+        const match = cookieHeader.match(
+          new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`)
+        );
+        if (match) {
+          token = decodeURIComponent(match[1]);
+        }
+      }
+
+      if (token && typeof token === "string") {
+        const cleanToken = token.startsWith("Bearer ")
+          ? token.slice(7).trim()
+          : token.trim();
+        const decoded = verifyTok(cleanToken);
+        if (decoded && decoded.id) {
+          socket.data.user = {
+            id: String(decoded.id),
+            name: String(decoded.name || decoded.username || "Adventurer"),
+            username: String(decoded.username || decoded.name || "Adventurer"),
+          };
+        }
+      }
+    } catch {
+      // Allow fallback for testing if no token or token is invalid
+    }
+    next();
+  });
+
   io.on("connection", (socket) => {
     // Join room
     socket.on("join_room", (data) => {
       if (!data || !data.roomId) return;
       const { roomId, user } = data;
-      if (!user || !user.id || !user.name) return;
+
+      // Prioritize authenticated user from token over unauthenticated client payload
+      const activeUser = socket.data.user
+        ? {
+            id: String(socket.data.user.id),
+            name: String(socket.data.user.name),
+            username: String(socket.data.user.username || socket.data.user.name),
+          }
+        : user && user.id && user.name
+        ? {
+            id: String(user.id),
+            name: String(user.name),
+            username: user.username ? String(user.username) : String(user.name),
+          }
+        : null;
+
+      if (!activeUser) return;
 
       const roomChannel = `room:${roomId}`;
       socket.join(roomChannel);
@@ -52,12 +107,7 @@ function initSocketServer(httpServer, options = {}) {
       if (!roomUsers.has(roomId)) {
         roomUsers.set(roomId, new Map());
       }
-      const userEntry = {
-        id: String(user.id),
-        name: String(user.name),
-        username: user.username ? String(user.username) : String(user.name),
-      };
-      roomUsers.get(roomId).set(socket.id, userEntry);
+      roomUsers.get(roomId).set(socket.id, activeUser);
 
       if (!socketRooms.has(socket.id)) {
         socketRooms.set(socket.id, new Set());
@@ -89,13 +139,13 @@ function initSocketServer(httpServer, options = {}) {
           throw new Error("You must join the room before rolling dice");
         }
 
-        // Derive user from verified in-memory room membership
-        const rollingUser = memberUser;
+        // Derive user strictly from socket.data.user or registered room user
+        const rollingUser = socket.data.user || memberUser;
 
         const parsedCount = count !== undefined ? Number(count) : 1;
         const parsedModifier = modifier !== undefined ? Number(modifier) : 0;
 
-        const roll = calcRoll(diceType, parsedCount, parsedModifier);
+        const roll = calcRoll(diceType, parsedCount, parsedModifier, cryptoRng);
         const saved = saveRoll(roomId, rollingUser, roll);
 
         const payload = {

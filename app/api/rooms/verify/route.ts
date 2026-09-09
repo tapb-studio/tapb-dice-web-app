@@ -33,8 +33,18 @@ export async function POST(req: NextRequest | Request) {
     );
   }
 
-  return NextResponse.json(
+  const response = NextResponse.json(
     { valid: true, room: result.room },
     { status: 200 }
   );
+
+  if (result.room?.code) {
+    response.cookies.set(`room_access_${result.room.code}`, "1", {
+      path: "/",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24, // 24 hours
+    });
+  }
+
+  return response;
 }

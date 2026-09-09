@@ -113,7 +113,7 @@ export async function createRoom(
   }
 
   if (!code) {
-    code = `ROOM-${Math.floor(100 + Math.random() * 900)}`;
+    code = `ROOM-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
   }
 
   let password_hash: string | null = null;

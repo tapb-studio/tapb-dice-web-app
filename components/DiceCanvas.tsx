@@ -109,7 +109,7 @@ export function DiceCanvas({
       alpha: true,
       powerPreference: "high-performance",
     });
-    renderer.setSize(width, height);
+    renderer.setSize(width, height, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -242,7 +242,7 @@ export function DiceCanvas({
         if (newW > 0 && newH > 0) {
           camera.aspect = newW / newH;
           camera.updateProjectionMatrix();
-          renderer.setSize(newW, newH);
+          renderer.setSize(newW, newH, false);
         }
       }
     });

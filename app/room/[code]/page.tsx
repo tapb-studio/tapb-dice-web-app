@@ -67,6 +67,7 @@ export default function RoomPage() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
+  const rollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 1. Authenticate user & load room details
   useEffect(() => {
@@ -95,7 +96,13 @@ export default function RoomPage() {
           return;
         }
 
-        const roomRes = await fetch(`/api/rooms/${codeParam}`);
+        const isSessionAuth =
+          typeof window !== "undefined" &&
+          window.sessionStorage.getItem("room_auth_" + codeParam) === "1";
+
+        const roomRes = await fetch(`/api/rooms/${codeParam}`, {
+          headers: isSessionAuth ? { "x-room-access": "1" } : {},
+        });
         if (!roomRes.ok) {
           const errData = await roomRes.json();
           if (isMounted) {
@@ -140,9 +147,6 @@ export default function RoomPage() {
 
         // Check access: public room, owner of room, or authorized in this session
         const isOwner = authData.user && loadedRoom.created_by === authData.user.id;
-        const isSessionAuth =
-          typeof window !== "undefined" &&
-          window.sessionStorage.getItem("room_auth_" + loadedRoom.code) === "1";
 
         if (!loadedRoom.hasPassword || isOwner || isSessionAuth) {
           setIsVerified(true);
@@ -194,9 +198,40 @@ export default function RoomPage() {
 
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem("room_auth_" + room.code, "1");
+        document.cookie = `room_access_${room.code}=1; path=/; max-age=86400; SameSite=Lax`;
       }
       setShowPasswordModal(false);
       setIsVerified(true);
+
+      // Refresh roll history now that chamber access is verified
+      try {
+        const refetch = await fetch(`/api/rooms/${room.code}`, {
+          headers: { "x-room-access": "1" },
+        });
+        if (refetch.ok) {
+          const updated = await refetch.json();
+          if (Array.isArray(updated.recentRolls)) {
+            const normalized: RollHistoryItem[] = updated.recentRolls.map((r: any) => ({
+              id: r.id,
+              userName: r.user_name || "Adventurer",
+              diceType: r.dice_type || "d20",
+              count: r.dice_count ?? 1,
+              modifier: r.modifier ?? 0,
+              notation: r.notation || `${r.dice_count || 1}${r.dice_type || "d20"}`,
+              individualResults: Array.isArray(r.individual_results)
+                ? r.individual_results
+                : [],
+              total: r.total,
+              isCritHit: Boolean(r.is_crit_hit),
+              isCritFail: Boolean(r.is_crit_fail),
+              createdAt: r.created_at || new Date().toISOString(),
+            }));
+            setRollHistory(normalized);
+          }
+        }
+      } catch {
+        // Non-fatal if refetch fails
+      }
     } catch {
       setPasswordError("Failed to verify password. Please try again.");
     } finally {
@@ -244,6 +279,11 @@ export default function RoomPage() {
     });
 
     socket.on("dice_rolled", (data: any) => {
+      if (rollTimeoutRef.current) {
+        clearTimeout(rollTimeoutRef.current);
+        rollTimeoutRef.current = null;
+      }
+
       const socketRoll: RollHistoryItem = {
         id: data.id,
         userName: data.user?.name || "Adventurer",
@@ -276,6 +316,10 @@ export default function RoomPage() {
     });
 
     return () => {
+      if (rollTimeoutRef.current) {
+        clearTimeout(rollTimeoutRef.current);
+        rollTimeoutRef.current = null;
+      }
       socket.emit("leave_room", { roomId: room.id });
       socket.disconnect();
       socketRef.current = null;
@@ -289,6 +333,13 @@ export default function RoomPage() {
 
       setIsRolling(true);
 
+      // Safety fallback timer so the button never stays permanently locked in isRolling state
+      if (rollTimeoutRef.current) {
+        clearTimeout(rollTimeoutRef.current);
+      }
+      const timer = setTimeout(() => setIsRolling(false), 6000);
+      rollTimeoutRef.current = timer;
+
       socketRef.current.emit(
         "roll_dice",
         {
@@ -299,6 +350,10 @@ export default function RoomPage() {
         },
         (response: { success?: boolean; error?: string }) => {
           if (response && !response.success) {
+            if (rollTimeoutRef.current) {
+              clearTimeout(rollTimeoutRef.current);
+              rollTimeoutRef.current = null;
+            }
             setIsRolling(false);
           }
         }
@@ -308,6 +363,10 @@ export default function RoomPage() {
   );
 
   const handleRollComplete = useCallback(() => {
+    if (rollTimeoutRef.current) {
+      clearTimeout(rollTimeoutRef.current);
+      rollTimeoutRef.current = null;
+    }
     setIsRolling(false);
   }, []);
 

@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import path from "path";
 import fs from "fs";
 import { NextRequest } from "next/server";
 import { getDb, closeDb } from "@/lib/db";
 import { registerUser, createToken } from "@/lib/auth";
+import * as roomsModule from "@/lib/rooms";
 import {
   generateRoomCode,
   createRoom,
@@ -104,6 +105,25 @@ describe("Room Management System (Task 4)", () => {
       await expect(
         createRoom("Lost Temple", null, "non-existent-user-id", db)
       ).rejects.toThrow(/FOREIGN KEY/i);
+    });
+
+    it("generates unique fallback code with random hex digits if candidate codes collide", async () => {
+      // Simulate code collisions by passing custom db where SELECT id returns collision
+      const mockDb = {
+        prepare: (sql: string) => {
+          if (sql.includes("SELECT id FROM rooms WHERE code = ?")) {
+            return {
+              get: () => ({ id: "collision-id" }),
+            };
+          }
+          return db.prepare(sql);
+        },
+      } as any;
+
+      const fallbackRoom = await createRoom("Fallback Vault", null, testUser.id, mockDb);
+
+      expect(fallbackRoom.code).toMatch(/^ROOM-[0-9A-F]{6}$/);
+      expect(fallbackRoom.name).toBe("Fallback Vault");
     });
   });
 
@@ -452,6 +472,146 @@ describe("Room Management System (Task 4)", () => {
         expect(json.room).toBeDefined();
         expect(json.room.code).toBe(room.code);
         expect(Array.isArray(json.recentRolls)).toBe(true);
+      });
+
+      it("returns empty recentRolls for password-protected room when requesting user is unverified", async () => {
+        const room = await createRoom("Dark Sanctuary", "secretPass", testUser.id, db);
+
+        // Add a roll into the room
+        db.prepare(`
+          INSERT INTO dice_rolls (
+            id, room_id, user_id, user_name, notation, dice_type, dice_count, modifier, individual_results, total, is_crit_hit, is_crit_fail, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          "roll-secret-1",
+          room.id,
+          testUser.id,
+          testUser.name,
+          "1d20",
+          "d20",
+          1,
+          0,
+          JSON.stringify([20]),
+          20,
+          1,
+          0,
+          "2026-09-08 20:00:00"
+        );
+
+        // Unverified guest request
+        const req = new NextRequest(`http://localhost:3000/api/rooms/${room.code}`);
+        const res = await getRoomHandler(req, { params: Promise.resolve({ code: room.code }) });
+        expect(res.status).toBe(200);
+
+        const json = await res.json();
+        expect(json.room).toBeDefined();
+        expect(json.room.hasPassword).toBe(true);
+        expect(json.recentRolls).toEqual([]);
+      });
+
+      it("returns full recentRolls for password-protected room when requested by room creator", async () => {
+        const room = await createRoom("DM Private Study", "dmPass123", testUser.id, db);
+
+        db.prepare(`
+          INSERT INTO dice_rolls (
+            id, room_id, user_id, user_name, notation, dice_type, dice_count, modifier, individual_results, total, is_crit_hit, is_crit_fail, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          "roll-dm-1",
+          room.id,
+          testUser.id,
+          testUser.name,
+          "1d20",
+          "d20",
+          1,
+          0,
+          JSON.stringify([15]),
+          15,
+          0,
+          0,
+          "2026-09-08 20:00:00"
+        );
+
+        // Request with creator's auth token cookie
+        const req = new NextRequest(`http://localhost:3000/api/rooms/${room.code}`, {
+          headers: {
+            cookie: `token=${authToken}`,
+          },
+        });
+        const res = await getRoomHandler(req, { params: Promise.resolve({ code: room.code }) });
+        expect(res.status).toBe(200);
+
+        const json = await res.json();
+        expect(json.recentRolls).toHaveLength(1);
+        expect(json.recentRolls[0].id).toBe("roll-dm-1");
+      });
+
+      it("returns full recentRolls for password-protected room with valid room access header or cookie", async () => {
+        const room = await createRoom("Guild Archives", "guildPass", testUser.id, db);
+
+        db.prepare(`
+          INSERT INTO dice_rolls (
+            id, room_id, user_id, user_name, notation, dice_type, dice_count, modifier, individual_results, total, is_crit_hit, is_crit_fail, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          "roll-guild-1",
+          room.id,
+          testUser.id,
+          testUser.name,
+          "1d12",
+          "d12",
+          1,
+          0,
+          JSON.stringify([10]),
+          10,
+          0,
+          0,
+          "2026-09-08 20:00:00"
+        );
+
+        // Request with x-room-access header
+        const headerReq = new NextRequest(`http://localhost:3000/api/rooms/${room.code}`, {
+          headers: {
+            "x-room-access": "1",
+          },
+        });
+        const headerRes = await getRoomHandler(headerReq, { params: Promise.resolve({ code: room.code }) });
+        expect(headerRes.status).toBe(200);
+        const headerJson = await headerRes.json();
+        expect(headerJson.recentRolls).toHaveLength(1);
+
+        // Request with room_access cookie
+        const cookieReq = new NextRequest(`http://localhost:3000/api/rooms/${room.code}`, {
+          headers: {
+            cookie: `room_access_${room.code}=1`,
+          },
+        });
+        const cookieRes = await getRoomHandler(cookieReq, { params: Promise.resolve({ code: room.code }) });
+        expect(cookieRes.status).toBe(200);
+        const cookieJson = await cookieRes.json();
+        expect(cookieJson.recentRolls).toHaveLength(1);
+
+        // Request with correct x-room-password header
+        const passReq = new NextRequest(`http://localhost:3000/api/rooms/${room.code}`, {
+          headers: {
+            "x-room-password": "guildPass",
+          },
+        });
+        const passRes = await getRoomHandler(passReq, { params: Promise.resolve({ code: room.code }) });
+        expect(passRes.status).toBe(200);
+        const passJson = await passRes.json();
+        expect(passJson.recentRolls).toHaveLength(1);
+
+        // Request with wrong x-room-password header
+        const wrongPassReq = new NextRequest(`http://localhost:3000/api/rooms/${room.code}`, {
+          headers: {
+            "x-room-password": "wrongPassword",
+          },
+        });
+        const wrongPassRes = await getRoomHandler(wrongPassReq, { params: Promise.resolve({ code: room.code }) });
+        expect(wrongPassRes.status).toBe(200);
+        const wrongPassJson = await wrongPassRes.json();
+        expect(wrongPassJson.recentRolls).toEqual([]);
       });
     });
   });
