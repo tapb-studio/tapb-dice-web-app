@@ -15,26 +15,41 @@ const roomUsers = new Map();
 const socketRooms = new Map();
 
 // Auto-cleanup timer tracking for empty rooms
-const EMPTY_ROOM_GRACE_MS = 60 * 1000; // 60 seconds grace period
+const DISCONNECT_GRACE_MS = 5 * 1000; // 5 seconds grace period on disconnect (for page refresh)
 const emptyRoomTimers = new Map();
 
-function scheduleRoomCleanup(roomId) {
+function cleanupRoomNow(roomId, io, customDb) {
+  if (emptyRoomTimers.has(roomId)) {
+    clearTimeout(emptyRoomTimers.get(roomId));
+    emptyRoomTimers.delete(roomId);
+  }
+  const currentUsers = roomUsers.get(roomId);
+  if (!currentUsers || currentUsers.size === 0) {
+    try {
+      const db = customDb && customDb.open ? customDb : getDb();
+      const roomRow = db.prepare("SELECT id, code FROM rooms WHERE id = ?").get(roomId);
+      db.prepare("DELETE FROM dice_rolls WHERE room_id = ?").run(roomId);
+      db.prepare("DELETE FROM rooms WHERE id = ?").run(roomId);
+      roomUsers.delete(roomId);
+      if (io && roomRow) {
+        io.emit("lobby_room_deleted", { roomId: roomRow.id, code: roomRow.code });
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production" && !process.env.VITEST) {
+        console.error("cleanupRoomNow error:", err);
+      }
+    }
+  }
+}
+
+function scheduleRoomCleanup(roomId, io, customDb, delayMs = DISCONNECT_GRACE_MS) {
   if (emptyRoomTimers.has(roomId)) {
     clearTimeout(emptyRoomTimers.get(roomId));
   }
   const timer = setTimeout(() => {
     emptyRoomTimers.delete(roomId);
-    const currentUsers = roomUsers.get(roomId);
-    if (!currentUsers || currentUsers.size === 0) {
-      try {
-        const db = getDb();
-        db.prepare("DELETE FROM dice_rolls WHERE room_id = ?").run(roomId);
-        db.prepare("DELETE FROM rooms WHERE id = ?").run(roomId);
-      } catch (err) {
-        // quiet error catch
-      }
-    }
-  }, EMPTY_ROOM_GRACE_MS);
+    cleanupRoomNow(roomId, io, customDb);
+  }, delayMs);
   emptyRoomTimers.set(roomId, timer);
 }
 
@@ -68,6 +83,9 @@ function initSocketServer(httpServer, options = {}) {
   const cookieName = options.cookieName || AUTH_COOKIE_NAME || "token";
   const cryptoRng =
     options.rng || (() => crypto.randomInt(0, 10000000) / 10000000);
+  const database = options.db || getDb();
+  const disconnectGraceMs =
+    options.disconnectGraceMs !== undefined ? options.disconnectGraceMs : 5000;
 
   const io = new Server(httpServer, {
     cors: {
@@ -76,6 +94,22 @@ function initSocketServer(httpServer, options = {}) {
     },
     ...options,
   });
+
+  // On startup, clean up any orphaned empty rooms from previous server sessions after a short delay
+  setTimeout(() => {
+    try {
+      const allRooms = database.prepare("SELECT id, code FROM rooms").all();
+      for (const r of allRooms) {
+        const currentUsers = roomUsers.get(r.id);
+        if (!currentUsers || currentUsers.size === 0) {
+          database.prepare("DELETE FROM dice_rolls WHERE room_id = ?").run(r.id);
+          database.prepare("DELETE FROM rooms WHERE id = ?").run(r.id);
+        }
+      }
+    } catch {
+      // quiet catch
+    }
+  }, 2000);
 
   // Socket.io Authentication Middleware: inspect cookie or auth token, validate JWT
   io.use((socket, next) => {
@@ -220,7 +254,7 @@ function initSocketServer(httpServer, options = {}) {
         if (!data || !data.roomId) return;
         const { roomId } = data;
         const user = socket.data.user;
-        const db = getDb();
+        const db = database;
         const room = db.prepare("SELECT * FROM rooms WHERE id = ?").get(roomId);
         if (!room) {
           if (typeof callback === "function") callback({ success: false, error: "Room not found" });
@@ -243,6 +277,8 @@ function initSocketServer(httpServer, options = {}) {
         roomUsers.delete(roomId);
         cancelRoomCleanup(roomId);
 
+        io.emit("lobby_room_deleted", { roomId, code: room.code });
+
         if (typeof callback === "function") callback({ success: true });
       } catch (err) {
         if (typeof callback === "function") callback({ success: false, error: err.message });
@@ -250,8 +286,11 @@ function initSocketServer(httpServer, options = {}) {
     });
 
     // Leave room
-    socket.on("leave_room", (data) => {
-      if (!data || !data.roomId) return;
+    socket.on("leave_room", (data, callback) => {
+      if (!data || !data.roomId) {
+        if (typeof callback === "function") callback({ success: false });
+        return;
+      }
       const { roomId } = data;
       const roomChannel = `room:${roomId}`;
 
@@ -261,7 +300,8 @@ function initSocketServer(httpServer, options = {}) {
         roomUsers.get(roomId).delete(socket.id);
         if (roomUsers.get(roomId).size === 0) {
           roomUsers.delete(roomId);
-          scheduleRoomCleanup(roomId);
+          // Last user deliberately left -> delete room immediately
+          cleanupRoomNow(roomId, io, database);
         }
       }
 
@@ -275,6 +315,8 @@ function initSocketServer(httpServer, options = {}) {
       io.to(roomChannel).emit("room_users_updated", {
         users: getRoomUsers(roomId),
       });
+
+      if (typeof callback === "function") callback({ success: true });
     });
 
     // Disconnect
@@ -287,7 +329,8 @@ function initSocketServer(httpServer, options = {}) {
             roomUsers.get(roomId).delete(socket.id);
             if (roomUsers.get(roomId).size === 0) {
               roomUsers.delete(roomId);
-              scheduleRoomCleanup(roomId);
+              // Disconnected (e.g. page refresh): short grace period before delete
+              scheduleRoomCleanup(roomId, io, database, disconnectGraceMs);
             }
           }
           io.to(roomChannel).emit("room_users_updated", {

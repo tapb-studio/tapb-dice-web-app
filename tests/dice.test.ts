@@ -277,7 +277,7 @@ describe("Dice Logic & Real-Time Socket.io Server (Task 5)", () => {
     beforeEach(async () => {
       // Create HTTP server and attach Socket.io
       httpServer = http.createServer();
-      ioServer = initSocketServer(httpServer, { calculateRoll, saveRollToDb });
+      ioServer = initSocketServer(httpServer, { calculateRoll, saveRollToDb, db });
 
       await new Promise<void>((resolve) => {
         httpServer.listen(0, () => {
@@ -666,6 +666,44 @@ describe("Dice Logic & Real-Time Socket.io Server (Task 5)", () => {
       expect(updated.users).toHaveLength(1);
       expect(updated.users[0].id).toBe(testUser.id);
       expect(updated.users[0].name).toBe(testUser.name);
+    });
+
+    it("deletes room immediately and broadcasts lobby_room_deleted when last user leaves via leave_room", async () => {
+      const tempRoom = await createRoom("Ephemeral Chamber", null, testUser.id, db);
+      clientSocket1 = ioc(`http://localhost:${serverPort}`, { transports: ["websocket"] });
+      await new Promise<void>((res) => clientSocket1.on("connect", res));
+
+      clientSocket1.emit("join_room", {
+        roomId: tempRoom.id,
+        user: { id: testUser.id, name: testUser.name },
+      });
+
+      // Wait until join completes
+      await new Promise<void>((resolve) => {
+        clientSocket1.once("room_users_updated", () => resolve());
+      });
+
+      // Verify room exists in DB
+      let roomInDb = db.prepare("SELECT * FROM rooms WHERE id = ?").get(tempRoom.id);
+      expect(roomInDb).toBeDefined();
+
+      const lobbyDeletedPromise = new Promise<{ roomId: string; code: string }>((resolve) => {
+        clientSocket1.once("lobby_room_deleted", resolve);
+      });
+
+      // Leave room
+      const leaveAckPromise = new Promise<any>((resolve) => {
+        clientSocket1.emit("leave_room", { roomId: tempRoom.id }, resolve);
+      });
+
+      await leaveAckPromise;
+      const lobbyDeleted = await lobbyDeletedPromise;
+      expect(lobbyDeleted.roomId).toBe(tempRoom.id);
+      expect(lobbyDeleted.code).toBe(tempRoom.code);
+
+      // Verify room is immediately deleted from DB
+      roomInDb = db.prepare("SELECT * FROM rooms WHERE id = ?").get(tempRoom.id);
+      expect(roomInDb).toBeUndefined();
     });
   });
 });

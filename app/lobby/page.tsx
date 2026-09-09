@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { useLanguage } from "@/lib/i18n";
+import { io } from "socket.io-client";
 
 interface UserInfo {
   id: string;
@@ -111,9 +112,40 @@ export default function LobbyPage() {
   }, []);
 
   useEffect(() => {
-    if (!isLoadingAuth) {
+    if (isLoadingAuth) return;
+
+    fetchRooms();
+
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+    const socket = io(origin, {
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("lobby_room_deleted", (data: { roomId?: string; code?: string }) => {
+      setRooms((prev) =>
+        prev.filter((r) => r.id !== data?.roomId && r.code !== data?.code)
+      );
+    });
+
+    socket.on("lobby_room_created", () => {
       fetchRooms();
-    }
+    });
+
+    const onFocus = () => {
+      fetchRooms();
+    };
+    window.addEventListener("focus", onFocus);
+
+    const interval = setInterval(() => {
+      fetchRooms();
+    }, 8000);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(interval);
+      socket.disconnect();
+    };
   }, [isLoadingAuth, fetchRooms]);
 
   // Handle Create Room

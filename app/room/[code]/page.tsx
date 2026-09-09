@@ -427,7 +427,26 @@ export default function RoomPage() {
   };
 
   const handleLeaveRoom = () => {
-    router.push("/lobby");
+    if (socketRef.current && room?.id) {
+      let navigated = false;
+      const doNavigate = () => {
+        if (!navigated) {
+          navigated = true;
+          router.push("/lobby");
+        }
+      };
+
+      try {
+        socketRef.current.emit("leave_room", { roomId: room.id }, () => {
+          doNavigate();
+        });
+        setTimeout(doNavigate, 150);
+      } catch {
+        doNavigate();
+      }
+    } else {
+      router.push("/lobby");
+    }
   };
 
   if (isLoading) {
