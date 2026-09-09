@@ -10,15 +10,17 @@ export const metadata: Metadata = {
   },
 };
 
+import { Providers } from "@/components/Providers";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-neutral-950 text-neutral-100 antialiased selection:bg-amber-500 selection:text-neutral-950 flex flex-col">
-        {children}
+    <html lang="th" suppressHydrationWarning className="dark">
+      <body className="min-h-screen bg-stone-100 text-stone-900 dark:bg-neutral-950 dark:text-neutral-100 antialiased selection:bg-amber-500 selection:text-neutral-950 flex flex-col transition-colors duration-200">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

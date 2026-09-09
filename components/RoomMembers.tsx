@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Users, Shield } from "lucide-react";
+import { useLanguage } from "@/lib/i18n";
 
 export interface RoomMemberItem {
   id: string;
@@ -20,20 +21,22 @@ export function RoomMembers({
   currentUserId,
   className = "",
 }: RoomMembersProps) {
+  const { t } = useLanguage();
+
   return (
     <div
-      className={`rounded-2xl border border-neutral-800 bg-neutral-900/70 backdrop-blur-md overflow-hidden ${className}`}
+      className={`rounded-2xl border border-stone-200 bg-white/80 dark:border-neutral-800 dark:bg-neutral-900/70 backdrop-blur-md overflow-hidden shadow-sm transition-colors ${className}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3 bg-neutral-950/50">
+      <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3 bg-stone-50/80 dark:border-neutral-800 dark:bg-neutral-950/50">
         <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-emerald-400" />
-          <h3 className="font-serif text-sm font-bold text-amber-100">
-            Party In Chamber
+          <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <h3 className="font-serif text-sm font-bold text-stone-800 dark:text-amber-100">
+            {t("activeParty")}
           </h3>
         </div>
-        <span className="flex items-center gap-1.5 rounded-full bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 text-[11px] font-mono text-emerald-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="flex items-center gap-1.5 rounded-full bg-emerald-100/80 border border-emerald-300/60 dark:bg-emerald-950/60 dark:border-emerald-800/40 px-2 py-0.5 text-[11px] font-mono text-emerald-800 dark:text-emerald-300">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
           <span>{members.length}</span>
         </span>
       </div>
@@ -41,8 +44,8 @@ export function RoomMembers({
       {/* Member List */}
       <div className="p-3 space-y-1.5 max-h-[220px] overflow-y-auto">
         {members.length === 0 ? (
-          <p className="text-xs text-neutral-500 py-2 text-center">
-            No party members detected.
+          <p className="text-xs text-stone-400 dark:text-neutral-500 py-2 text-center">
+            {t("noMembersDetected")}
           </p>
         ) : (
           members.map((member) => {
@@ -53,8 +56,8 @@ export function RoomMembers({
                 key={member.id}
                 className={`flex items-center justify-between rounded-xl px-2.5 py-2 transition-colors ${
                   isMe
-                    ? "bg-amber-950/30 border border-amber-800/30"
-                    : "bg-neutral-950/50 border border-neutral-800/60 hover:border-neutral-700"
+                    ? "bg-amber-100/60 border border-amber-300/60 dark:bg-amber-950/30 dark:border-amber-800/30"
+                    : "bg-stone-50/80 border border-stone-200 hover:border-stone-300 dark:bg-neutral-950/50 dark:border-neutral-800/60 dark:hover:border-neutral-700"
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -67,24 +70,24 @@ export function RoomMembers({
                   {/* Member Name */}
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold text-neutral-200 truncate">
+                      <span className="text-xs font-semibold text-stone-800 dark:text-neutral-200 truncate">
                         {member.name}
                       </span>
                       {isMe && (
-                        <span className="rounded bg-amber-500/20 px-1 py-0.2 text-[9px] font-bold text-amber-300 border border-amber-500/30">
-                          YOU
+                        <span className="rounded bg-amber-500/20 px-1 py-0.2 text-[9px] font-bold text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                          {t("you")}
                         </span>
                       )}
                     </div>
                     {member.username && member.username !== member.name && (
-                      <span className="text-[10px] text-neutral-500 truncate">
+                      <span className="text-[10px] text-stone-400 dark:text-neutral-500 truncate">
                         @{member.username}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <Shield className="h-3.5 w-3.5 text-neutral-600 shrink-0" />
+                <Shield className="h-3.5 w-3.5 text-stone-400 dark:text-neutral-600 shrink-0" />
               </div>
             );
           })

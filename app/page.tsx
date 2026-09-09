@@ -4,9 +4,11 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dices, Shield, Sparkles, User, Lock, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
+import { useLanguage } from "@/lib/i18n";
 
 export default function AuthPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [checkingAuth, setCheckingAuth] = useState(true);
 
@@ -48,7 +50,7 @@ export default function AuthPage() {
 
     if (activeTab === "login") {
       if (!username.trim() || !password) {
-        setError("Please provide both username and password.");
+        setError(t("fillAllFields"));
         return;
       }
 
@@ -75,12 +77,8 @@ export default function AuthPage() {
       }
     } else {
       // Register
-      if (!name.trim()) {
-        setError("Character or player name is required.");
-        return;
-      }
-      if (!username.trim()) {
-        setError("Username is required.");
+      if (!name.trim() || !username.trim()) {
+        setError(t("fillAllFields"));
         return;
       }
       if (password.length < 6) {
@@ -88,7 +86,7 @@ export default function AuthPage() {
         return;
       }
       if (password !== confirmPassword) {
-        setError("Passwords do not match.");
+        setError(t("passwordsMismatch"));
         return;
       }
 
@@ -122,11 +120,11 @@ export default function AuthPage() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-stone-100 dark:bg-neutral-950 flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3">
           <Dices className="h-10 w-10 text-amber-500 animate-spin" />
-          <p className="text-sm font-medium text-amber-200/70 font-mono tracking-wide">
-            Consulting the ancient scrolls...
+          <p className="text-sm font-medium text-stone-600 dark:text-amber-200/70 font-mono tracking-wide">
+            {t("signingIn")}
           </p>
         </div>
       </div>
@@ -134,33 +132,33 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex flex-col">
+    <div className="min-h-screen bg-stone-100 dark:bg-neutral-950 text-stone-900 dark:text-neutral-100 flex flex-col transition-colors duration-200">
       <Navbar />
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8 relative overflow-hidden">
         {/* Subtle background ambient lights */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-amber-600/10 blur-[130px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-10 right-10 w-[400px] h-[250px] bg-red-600/5 blur-[100px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-amber-500/15 dark:bg-amber-600/10 blur-[130px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-10 right-10 w-[400px] h-[250px] bg-red-500/10 dark:bg-red-600/5 blur-[100px] rounded-full pointer-events-none" />
 
         <div className="w-full max-w-md relative z-10">
           {/* Header Badge */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-medium mb-4 shadow-sm">
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-              <span>Real-Time Polyhedral Tabletop Room</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 dark:bg-amber-950/40 border border-amber-600/30 text-amber-800 dark:text-amber-300 text-xs font-semibold mb-4 shadow-sm">
+              <Sparkles className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+              <span>Real-Time 3D Polyhedral Tabletop</span>
             </div>
-            <h1 className="font-serif text-3xl sm:text-4xl font-extrabold text-amber-100 tracking-tight">
-              Enter the Realm
+            <h1 className="font-serif text-3xl sm:text-4xl font-extrabold text-stone-900 dark:text-amber-100 tracking-tight">
+              {t("authTitle")}
             </h1>
-            <p className="mt-2 text-sm text-neutral-400">
-              Roll 3D dice in real-time sync with your party members.
+            <p className="mt-2 text-sm text-stone-600 dark:text-neutral-400">
+              {t("authSubtitle")}
             </p>
           </div>
 
           {/* Card Container */}
-          <div className="rounded-2xl border border-amber-900/30 bg-neutral-900/80 p-6 sm:p-8 backdrop-blur-xl shadow-2xl ring-1 ring-white/5">
+          <div className="rounded-2xl border border-stone-200 dark:border-amber-900/30 bg-white/80 dark:bg-neutral-900/80 p-6 sm:p-8 backdrop-blur-xl shadow-xl dark:shadow-2xl ring-1 ring-black/5 dark:ring-white/5 transition-colors">
             {/* Tab switch */}
-            <div className="grid grid-cols-2 p-1 mb-6 rounded-xl bg-neutral-950/70 border border-neutral-800">
+            <div className="grid grid-cols-2 p-1 mb-6 rounded-xl bg-stone-200/80 dark:bg-neutral-950/70 border border-stone-300 dark:border-neutral-800">
               <button
                 type="button"
                 onClick={() => {
@@ -169,11 +167,11 @@ export default function AuthPage() {
                 }}
                 className={`py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
                   activeTab === "login"
-                    ? "bg-amber-600 text-neutral-950 shadow-md shadow-amber-600/30"
-                    : "text-neutral-400 hover:text-neutral-200"
+                    ? "bg-amber-500 text-neutral-950 shadow-md shadow-amber-600/30 font-bold"
+                    : "text-stone-600 dark:text-neutral-400 hover:text-stone-900 dark:hover:text-neutral-200"
                 }`}
               >
-                Sign In
+                {t("signInTab")}
               </button>
               <button
                 type="button"
@@ -183,18 +181,18 @@ export default function AuthPage() {
                 }}
                 className={`py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
                   activeTab === "register"
-                    ? "bg-amber-600 text-neutral-950 shadow-md shadow-amber-600/30"
-                    : "text-neutral-400 hover:text-neutral-200"
+                    ? "bg-amber-500 text-neutral-950 shadow-md shadow-amber-600/30 font-bold"
+                    : "text-stone-600 dark:text-neutral-400 hover:text-stone-900 dark:hover:text-neutral-200"
                 }`}
               >
-                New Adventurer
+                {t("signUpTab")}
               </button>
             </div>
 
             {/* Error Banner */}
             {error && (
-              <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-500/40 bg-red-950/40 p-3.5 text-red-200 text-xs sm:text-sm">
-                <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+              <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-500/40 bg-red-50 dark:bg-red-950/40 p-3.5 text-red-800 dark:text-red-200 text-xs sm:text-sm">
+                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
                 <span className="leading-snug">{error}</span>
               </div>
             )}
@@ -203,11 +201,11 @@ export default function AuthPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {activeTab === "register" && (
                 <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-                    Adventurer Name
+                  <label className="block text-xs font-semibold text-stone-700 dark:text-neutral-300 mb-1.5">
+                    {t("fullName")}
                   </label>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-neutral-500">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-stone-400 dark:text-neutral-500">
                       <Shield className="h-4 w-4" />
                     </span>
                     <input
@@ -215,19 +213,19 @@ export default function AuthPage() {
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Torvald Ironbreaker"
-                      className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 pl-9 pr-3 py-2.5 text-sm text-neutral-100 placeholder-neutral-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-colors"
+                      placeholder={t("fullNamePlaceholder")}
+                      className="w-full rounded-xl border border-stone-300 dark:border-neutral-800 bg-stone-50 dark:bg-neutral-950/70 pl-9 pr-3 py-2.5 text-sm text-stone-900 dark:text-neutral-100 placeholder-stone-400 dark:placeholder-neutral-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-colors"
                     />
                   </div>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-                  Username
+                <label className="block text-xs font-semibold text-stone-700 dark:text-neutral-300 mb-1.5">
+                  {t("username")}
                 </label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-neutral-500">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-stone-400 dark:text-neutral-500">
                     <User className="h-4 w-4" />
                   </span>
                   <input
@@ -235,18 +233,18 @@ export default function AuthPage() {
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g. torvald22"
-                    className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 pl-9 pr-3 py-2.5 text-sm text-neutral-100 placeholder-neutral-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-colors"
+                    placeholder={t("usernamePlaceholder")}
+                    className="w-full rounded-xl border border-stone-300 dark:border-neutral-800 bg-stone-50 dark:bg-neutral-950/70 pl-9 pr-3 py-2.5 text-sm text-stone-900 dark:text-neutral-100 placeholder-stone-400 dark:placeholder-neutral-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-                  Password
+                <label className="block text-xs font-semibold text-stone-700 dark:text-neutral-300 mb-1.5">
+                  {t("password")}
                 </label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-neutral-500">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-stone-400 dark:text-neutral-500">
                     <Lock className="h-4 w-4" />
                   </span>
                   <input
@@ -254,19 +252,19 @@ export default function AuthPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 pl-9 pr-3 py-2.5 text-sm text-neutral-100 placeholder-neutral-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-colors"
+                    placeholder={t("passwordPlaceholder")}
+                    className="w-full rounded-xl border border-stone-300 dark:border-neutral-800 bg-stone-50 dark:bg-neutral-950/70 pl-9 pr-3 py-2.5 text-sm text-stone-900 dark:text-neutral-100 placeholder-stone-400 dark:placeholder-neutral-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-colors"
                   />
                 </div>
               </div>
 
               {activeTab === "register" && (
                 <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-                    Confirm Password
+                  <label className="block text-xs font-semibold text-stone-700 dark:text-neutral-300 mb-1.5">
+                    {t("confirmPassword")}
                   </label>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-neutral-500">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-stone-400 dark:text-neutral-500">
                       <Lock className="h-4 w-4" />
                     </span>
                     <input
@@ -274,8 +272,8 @@ export default function AuthPage() {
                       required
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 pl-9 pr-3 py-2.5 text-sm text-neutral-100 placeholder-neutral-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-colors"
+                      placeholder={t("confirmPasswordPlaceholder")}
+                      className="w-full rounded-xl border border-stone-300 dark:border-neutral-800 bg-stone-50 dark:bg-neutral-950/70 pl-9 pr-3 py-2.5 text-sm text-stone-900 dark:text-neutral-100 placeholder-stone-400 dark:placeholder-neutral-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -284,19 +282,19 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 px-4 py-3 font-semibold text-neutral-950 shadow-lg shadow-amber-600/25 transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+                className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 px-4 py-3 font-bold text-neutral-950 shadow-lg shadow-amber-600/25 transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
               >
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Processing...</span>
+                    <span>{t("signingIn")}</span>
                   </>
                 ) : (
                   <>
                     <span>
                       {activeTab === "login"
-                        ? "Enter Tavern"
-                        : "Forge Character"}
+                        ? t("signInTab")
+                        : t("signUpTab")}
                     </span>
                     <ArrowRight className="h-4 w-4 stroke-[2.5]" />
                   </>

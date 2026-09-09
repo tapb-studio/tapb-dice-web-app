@@ -3,8 +3,10 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Volume2, VolumeX, LogOut, User, Dices } from "lucide-react";
+import { Volume2, VolumeX, LogOut, User, Dices, Sun, Moon, Languages } from "lucide-react";
 import { isMuted, toggleMute } from "@/lib/audio";
+import { useTheme } from "@/lib/theme";
+import { useLanguage } from "@/lib/i18n";
 
 export interface NavbarProps {
   user?: {
@@ -17,6 +19,8 @@ export interface NavbarProps {
 
 export function Navbar({ user, showLobbyLink = false }: NavbarProps) {
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
+  const { language, toggleLanguage, t } = useLanguage();
   const [muted, setMutedState] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -43,7 +47,7 @@ export function Navbar({ user, showLobbyLink = false }: NavbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-amber-950/60 bg-neutral-950/85 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b border-amber-900/20 bg-stone-100/90 dark:border-amber-950/60 dark:bg-neutral-950/85 backdrop-blur-md transition-colors duration-200">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand / Title */}
         <Link
@@ -54,27 +58,54 @@ export function Navbar({ user, showLobbyLink = false }: NavbarProps) {
             <Dices className="h-6 w-6 stroke-[2.2]" />
           </div>
           <div className="flex flex-col">
-            <span className="font-serif text-lg font-bold tracking-wide text-amber-100 sm:text-xl">
-              TAPB <span className="text-amber-400">DICE</span>
+            <span className="font-serif text-lg font-bold tracking-wide text-stone-900 dark:text-amber-100 sm:text-xl">
+              TAPB <span className="text-amber-600 dark:text-amber-400">DICE</span>
             </span>
-            <span className="hidden text-[10px] font-medium uppercase tracking-widest text-amber-500/70 sm:inline-block">
-              Real-Time D&D Roller
+            <span className="hidden text-[10px] font-medium uppercase tracking-widest text-amber-700/80 dark:text-amber-500/70 sm:inline-block">
+              {t("appSubtitle")}
             </span>
           </div>
         </Link>
 
         {/* Action Controls & User Info */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          {/* Language Switcher */}
+          <button
+            type="button"
+            onClick={toggleLanguage}
+            title={language === "th" ? "Switch to English" : "เปลี่ยนเป็นภาษาไทย"}
+            aria-label="Toggle language"
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-stone-300 bg-stone-200/80 px-2.5 text-xs font-semibold text-stone-800 shadow-sm transition-all hover:border-amber-500/50 hover:bg-stone-300/80 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:border-neutral-700 dark:hover:text-white"
+          >
+            <Languages className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            <span>{language === "th" ? "TH" : "EN"}</span>
+          </button>
+
+          {/* Theme Toggle Button (Dark / Light) */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? t("themeLight") : t("themeDark")}
+            title={theme === "dark" ? t("themeLight") : t("themeDark")}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-stone-300 bg-stone-200/80 text-stone-700 shadow-sm transition-all hover:border-amber-500/50 hover:text-amber-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:border-neutral-700 dark:hover:text-amber-400"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4 text-amber-400 transition-transform rotate-0 hover:rotate-45" />
+            ) : (
+              <Moon className="h-4 w-4 text-stone-700 transition-transform -rotate-12 hover:rotate-0" />
+            )}
+          </button>
+
           {/* Sound Toggle Button */}
           <button
             type="button"
             onClick={handleSoundToggle}
-            aria-label={muted ? "Unmute sounds" : "Mute sounds"}
-            title={muted ? "Sound: Muted (click to enable)" : "Sound: Enabled (click to mute)"}
+            aria-label={muted ? t("soundOn") : t("soundOff")}
+            title={muted ? t("soundOn") : t("soundOff")}
             className={`relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
               muted
-                ? "border-neutral-800 bg-neutral-900 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300"
-                : "border-amber-500/40 bg-amber-950/30 text-amber-300 shadow-sm shadow-amber-500/10 hover:border-amber-500/70 hover:bg-amber-950/50"
+                ? "border-stone-300 bg-stone-200/80 text-stone-400 hover:border-stone-400 hover:text-stone-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500 dark:hover:border-neutral-700 dark:hover:text-neutral-300"
+                : "border-amber-500/40 bg-amber-100 text-amber-800 shadow-sm shadow-amber-500/10 hover:border-amber-500/70 hover:bg-amber-200/60 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:border-amber-500/70 dark:hover:bg-amber-950/50"
             }`}
           >
             {muted ? (
@@ -88,23 +119,23 @@ export function Navbar({ user, showLobbyLink = false }: NavbarProps) {
           {showLobbyLink && (
             <Link
               href="/lobby"
-              className="rounded-lg border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:border-neutral-700 hover:text-white"
+              className="rounded-lg border border-stone-300 bg-stone-200/90 px-3 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-amber-500 hover:text-stone-950 dark:border-neutral-800 dark:bg-neutral-900/90 dark:text-neutral-300 dark:hover:border-neutral-700 dark:hover:text-white"
             >
-              Lobby
+              {t("lobbyTitle").split(" ")[0]}
             </Link>
           )}
 
           {/* User Profile & Logout */}
           {user ? (
-            <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:border-l sm:border-neutral-800">
-              <div className="flex items-center gap-2 rounded-lg bg-neutral-900/60 px-2.5 py-1.5 ring-1 ring-neutral-800">
-                <User className="h-3.5 w-3.5 text-amber-400" />
+            <div className="flex items-center gap-2 sm:gap-3 pl-1 sm:border-l sm:border-stone-300 dark:sm:border-neutral-800">
+              <div className="flex items-center gap-2 rounded-lg bg-stone-200/70 dark:bg-neutral-900/60 px-2.5 py-1.5 ring-1 ring-stone-300 dark:ring-neutral-800">
+                <User className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                 <div className="flex flex-col text-left">
-                  <span className="text-xs font-semibold text-neutral-200 leading-none">
+                  <span className="text-xs font-semibold text-stone-900 dark:text-neutral-200 leading-none">
                     {user.name || user.username}
                   </span>
                   {user.username && user.name && (
-                    <span className="text-[10px] text-neutral-500 leading-none mt-0.5">
+                    <span className="text-[10px] text-stone-500 dark:text-neutral-500 leading-none mt-0.5">
                       @{user.username}
                     </span>
                   )}
@@ -115,9 +146,9 @@ export function Navbar({ user, showLobbyLink = false }: NavbarProps) {
                 type="button"
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                aria-label="Log out"
-                title="Log out"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-900 text-neutral-400 transition-all hover:border-red-900/60 hover:bg-red-950/30 hover:text-red-400 disabled:opacity-50"
+                aria-label={t("logout")}
+                title={t("logout")}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-stone-300 bg-stone-200/80 text-stone-600 transition-all hover:border-red-400 hover:bg-red-50 hover:text-red-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:border-red-900/60 dark:hover:bg-red-950/30 dark:hover:text-red-400 disabled:opacity-50"
               >
                 <LogOut className="h-4 w-4" />
               </button>

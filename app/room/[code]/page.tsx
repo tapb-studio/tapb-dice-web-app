@@ -19,6 +19,7 @@ import { DiceCanvas, DiceCanvasRollTrigger } from "@/components/DiceCanvas";
 import { DiceControls, DiceType } from "@/components/DiceControls";
 import { RollHistory, RollHistoryItem } from "@/components/RollHistory";
 import { RoomMembers, RoomMemberItem } from "@/components/RoomMembers";
+import { useLanguage } from "@/lib/i18n";
 
 interface UserInfo {
   id: string;
@@ -37,6 +38,7 @@ interface RoomInfo {
 
 export default function RoomPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const routeParams = useParams();
   const codeParam = (
     typeof routeParams?.code === "string"
@@ -390,10 +392,10 @@ export default function RoomPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center p-4 transition-colors">
         <Dices className="h-10 w-10 text-amber-500 animate-spin" />
-        <p className="text-sm font-medium text-amber-200/70 mt-3 font-mono">
-          Connecting to chamber...
+        <p className="text-sm font-medium text-stone-600 dark:text-amber-200/70 mt-3 font-mono">
+          {t("connectingToChamber")}
         </p>
       </div>
     );
@@ -401,21 +403,21 @@ export default function RoomPage() {
 
   if (error || !room) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
+      <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col transition-colors">
         <Navbar user={currentUser} />
         <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <div className="max-w-md rounded-2xl border border-red-900/40 bg-neutral-900/80 p-8 backdrop-blur-md shadow-2xl">
+          <div className="max-w-md rounded-2xl border border-red-300 dark:border-red-900/40 bg-white/90 dark:bg-neutral-900/80 p-8 backdrop-blur-md shadow-xl">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="font-serif text-2xl font-bold text-neutral-100 mb-2">
-              Chamber Inaccessible
+            <h2 className="font-serif text-2xl font-bold text-stone-900 dark:text-neutral-100 mb-2">
+              {t("chamberInaccessible")}
             </h2>
-            <p className="text-sm text-neutral-400 mb-6">{error || "Room not found."}</p>
+            <p className="text-sm text-stone-500 dark:text-neutral-400 mb-6">{error || t("roomNotFound")}</p>
             <button
               type="button"
               onClick={handleLeaveRoom}
-              className="rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-semibold text-neutral-950 hover:bg-amber-500 transition-colors shadow-lg shadow-amber-600/20"
+              className="rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white dark:text-neutral-950 hover:bg-amber-500 transition-colors shadow-lg shadow-amber-600/20"
             >
-              Return to Tavern Lobby
+              {t("returnToLobby")}
             </button>
           </div>
         </main>
@@ -424,31 +426,31 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col transition-colors">
       <Navbar user={currentUser} showLobbyLink={true} />
 
       {/* Main Room Layout */}
       <main className="flex-1 mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8 flex flex-col gap-4">
         {/* Room Header Banner */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-800 bg-neutral-900/80 px-4 py-3 sm:px-6 sm:py-3.5 backdrop-blur-md shadow-md">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white/80 dark:border-neutral-800 dark:bg-neutral-900/80 px-4 py-3 sm:px-6 sm:py-3.5 backdrop-blur-md shadow-sm transition-colors">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-neutral-950 font-bold shadow-md shadow-amber-600/20">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white dark:text-neutral-950 font-bold shadow-md shadow-amber-600/20">
               <Dices className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="font-serif text-base sm:text-lg font-bold text-amber-100 truncate">
+                <h1 className="font-serif text-base sm:text-lg font-bold text-stone-900 dark:text-amber-100 truncate">
                   {room.name}
                 </h1>
                 {room.hasPassword && (
-                  <span title="Password Protected" className="text-amber-400">
+                  <span title="Password Protected" className="text-amber-600 dark:text-amber-400">
                     <Lock className="h-3.5 w-3.5" />
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-xs text-neutral-400 font-mono">
-                <span>Code:</span>
-                <span className="font-bold text-amber-400">{room.code}</span>
+              <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-neutral-400 font-mono">
+                <span>{t("enterRoomCode")}:</span>
+                <span className="font-bold text-amber-600 dark:text-amber-400">{room.code}</span>
               </div>
             </div>
           </div>
@@ -457,18 +459,18 @@ export default function RoomPage() {
             <button
               type="button"
               onClick={handleCopyCode}
-              title="Copy Room Code"
-              className="flex items-center gap-1.5 rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-xs font-semibold text-neutral-300 hover:border-amber-500/50 hover:text-white transition-all shadow-sm"
+              title={t("copyCode")}
+              className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs font-semibold text-stone-700 hover:border-amber-400 hover:text-stone-900 dark:border-neutral-800 dark:bg-neutral-950/70 dark:text-neutral-300 dark:hover:border-amber-500/50 dark:hover:text-white transition-all shadow-sm"
             >
               {copiedCode ? (
                 <>
-                  <Check className="h-3.5 w-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">Copied!</span>
+                  <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-emerald-600 dark:text-emerald-400">{t("codeCopied")}</span>
                 </>
               ) : (
                 <>
-                  <Copy className="h-3.5 w-3.5 text-amber-400" />
-                  <span className="hidden sm:inline">Copy Code</span>
+                  <Copy className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  <span className="hidden sm:inline">{t("copyCode")}</span>
                 </>
               )}
             </button>
@@ -476,18 +478,18 @@ export default function RoomPage() {
             <button
               type="button"
               onClick={handleShareLink}
-              title="Share Room Link"
-              className="flex items-center gap-1.5 rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-xs font-semibold text-neutral-300 hover:border-amber-500/50 hover:text-white transition-all shadow-sm"
+              title={t("shareLink")}
+              className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs font-semibold text-stone-700 hover:border-amber-400 hover:text-stone-900 dark:border-neutral-800 dark:bg-neutral-950/70 dark:text-neutral-300 dark:hover:border-amber-500/50 dark:hover:text-white transition-all shadow-sm"
             >
               {copiedLink ? (
                 <>
-                  <Check className="h-3.5 w-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">Link Copied!</span>
+                  <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-emerald-600 dark:text-emerald-400">{t("linkCopied")}</span>
                 </>
               ) : (
                 <>
-                  <Share2 className="h-3.5 w-3.5 text-amber-400" />
-                  <span className="hidden sm:inline">Share Link</span>
+                  <Share2 className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  <span className="hidden sm:inline">{t("shareLink")}</span>
                 </>
               )}
             </button>
@@ -495,11 +497,11 @@ export default function RoomPage() {
             <button
               type="button"
               onClick={handleLeaveRoom}
-              title="Leave Room"
-              className="flex items-center gap-1.5 rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-xs font-semibold text-neutral-400 hover:border-red-900/50 hover:bg-red-950/30 hover:text-red-400 transition-all shadow-sm"
+              title={t("leaveRoom")}
+              className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs font-semibold text-stone-500 hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-neutral-800 dark:bg-neutral-950/70 dark:text-neutral-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-400 transition-all shadow-sm"
             >
               <LogOut className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Leave</span>
+              <span className="hidden sm:inline">{t("leaveRoom")}</span>
             </button>
           </div>
         </div>
@@ -543,25 +545,25 @@ export default function RoomPage() {
 
       {/* Password Required Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-amber-900/50 bg-neutral-900 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-amber-300 dark:border-amber-900/50 bg-white dark:bg-neutral-900 p-6 shadow-2xl transition-colors">
             <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                 <Lock className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="font-serif text-base font-bold text-amber-100">
-                  Protected Chamber
+                <h3 className="font-serif text-base font-bold text-stone-900 dark:text-amber-100">
+                  {t("protectedChamber")}
                 </h3>
-                <p className="text-xs text-neutral-400">
-                  Provide password to join {room.name}
+                <p className="text-xs text-stone-500 dark:text-neutral-400">
+                  {t("providePasswordToJoin")} {room.name}
                 </p>
               </div>
             </div>
 
             {passwordError && (
-              <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/40 p-2.5 text-xs text-red-200">
-                <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-400/40 bg-red-50 dark:bg-red-950/40 p-2.5 text-xs text-red-700 dark:text-red-200">
+                <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
                 <span>{passwordError}</span>
               </div>
             )}
@@ -573,28 +575,28 @@ export default function RoomPage() {
                 required
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="Chamber password"
-                className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3.5 py-2.5 text-sm text-neutral-100 placeholder-neutral-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-colors"
+                placeholder={t("chamberPassword")}
+                className="w-full rounded-xl border border-stone-300 bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder-neutral-500 transition-colors"
               />
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={handleLeaveRoom}
-                  className="rounded-xl border border-neutral-800 bg-neutral-950 px-3.5 py-2 text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-colors"
+                  className="rounded-xl border border-stone-200 bg-stone-100 px-3.5 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
                 >
-                  Leave
+                  {t("cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={isVerifyingPassword}
-                  className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-neutral-950 shadow-md shadow-amber-600/20 hover:bg-amber-500 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white dark:text-neutral-950 shadow-md shadow-amber-600/20 hover:bg-amber-500 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {isVerifyingPassword ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <>
-                      <span>Unlock Chamber</span>
+                      <span>{t("unlockChamber")}</span>
                       <ArrowRight className="h-3.5 w-3.5" />
                     </>
                   )}

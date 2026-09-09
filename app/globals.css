@@ -7,6 +7,16 @@
   --foreground: #f4f4f5;
 }
 
+html.light {
+  --background: #fbf9f5;
+  --foreground: #1c1917;
+}
+
+html.dark {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -21,6 +31,7 @@ body {
     Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Custom fantasy scrollbar */
