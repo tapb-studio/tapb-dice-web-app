@@ -38,10 +38,24 @@ export interface DiceCanvasProps {
 interface ActiveDie {
   mesh: THREE.Mesh;
   body: CANNON.Body;
+  diceType: Dice3DType;
   targetValue: number;
   settled: boolean;
   settleStartTime: number | null;
   targetQuat: THREE.Quaternion | null;
+}
+
+function disposeHierarchy(obj: THREE.Object3D): void {
+  obj.traverse((child) => {
+    if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
+      child.geometry?.dispose();
+      if (Array.isArray(child.material)) {
+        child.material.forEach((m) => m.dispose());
+      } else if (child.material) {
+        child.material.dispose();
+      }
+    }
+  });
 }
 
 export function DiceCanvas({
@@ -57,6 +71,8 @@ export function DiceCanvas({
   const [critStatus, setCritStatus] = useState<"hit" | "fail" | null>(null);
 
   const lastRollIdRef = useRef<string | null>(null);
+  const rollTriggerRef = useRef(rollTrigger);
+  rollTriggerRef.current = rollTrigger;
   const onRollCompleteRef = useRef(onRollComplete);
   onRollCompleteRef.current = onRollComplete;
 
@@ -270,7 +286,7 @@ export function DiceCanvas({
               if (shouldAlign) {
                 item.targetQuat = alignDiceToTarget(
                   item.mesh.quaternion,
-                  rollTrigger?.diceType || "d20",
+                  item.diceType,
                   item.targetValue
                 );
                 item.settleStartTime = time;
@@ -303,10 +319,11 @@ export function DiceCanvas({
           setIsRolling(false);
           activeDiceRef.current = []; // Animation loop complete
 
-          if (rollTrigger?.isCritHit) {
+          const currentTrigger = rollTriggerRef.current;
+          if (currentTrigger?.isCritHit) {
             playCritHitSound();
             setCritStatus("hit");
-          } else if (rollTrigger?.isCritFail) {
+          } else if (currentTrigger?.isCritFail) {
             playCritFailSound();
             setCritStatus("fail");
           } else {
@@ -333,9 +350,10 @@ export function DiceCanvas({
       floorMat.dispose();
       frameMat.dispose();
       goldTrimMat.dispose();
+      disposeHierarchy(frameGroup);
       for (const item of renderedDiceRef.current) {
         scene.remove(item.mesh);
-        item.mesh.geometry.dispose();
+        disposeHierarchy(item.mesh);
         world.removeBody(item.body);
       }
       renderedDiceRef.current = [];
@@ -355,12 +373,7 @@ export function DiceCanvas({
     // Clear previous rendered dice meshes and bodies
     for (const item of renderedDiceRef.current) {
       scene.remove(item.mesh);
-      item.mesh.geometry.dispose();
-      if (Array.isArray(item.mesh.material)) {
-        item.mesh.material.forEach((m) => m.dispose());
-      } else {
-        item.mesh.material.dispose();
-      }
+      disposeHierarchy(item.mesh);
       world.removeBody(item.body);
     }
     renderedDiceRef.current = [];
@@ -383,10 +396,20 @@ export function DiceCanvas({
 
     for (let i = 0; i < count; i++) {
       const targetValue = results[i] ?? 1;
+      const isCritHit = Boolean(
+        rollTrigger.isCritHit &&
+          (rollTrigger.diceType.toLowerCase() === "d20" ? targetValue === 20 : true)
+      );
+      const isCritFail = Boolean(
+        rollTrigger.isCritFail &&
+          (rollTrigger.diceType.toLowerCase() === "d20" ? targetValue === 1 : true)
+      );
 
-      // Create visual mesh
+      // Create visual mesh with critical styling (radiant gold or dark crimson glow)
       const mesh = createDiceMesh(rollTrigger.diceType as Dice3DType, {
         targetValue,
+        isCritHit,
+        isCritFail,
       });
 
       // Create physics body
@@ -429,6 +452,7 @@ export function DiceCanvas({
       newActiveDice.push({
         mesh,
         body,
+        diceType: rollTrigger.diceType.toLowerCase() as Dice3DType,
         targetValue,
         settled: false,
         settleStartTime: null,
