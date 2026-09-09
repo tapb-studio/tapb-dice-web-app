@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Volume2, VolumeX, LogOut, User, Dices, Sun, Moon, Languages } from "lucide-react";
+import { Volume2, VolumeX, LogOut, User, Dices, Sun, Moon, Languages, Home } from "lucide-react";
 import { isMuted, toggleMute } from "@/lib/audio";
 import { useTheme } from "@/lib/theme";
 import { useLanguage } from "@/lib/i18n";
@@ -119,23 +119,28 @@ export function Navbar({ user, showLobbyLink = false }: NavbarProps) {
           {showLobbyLink && (
             <Link
               href="/lobby"
-              className="rounded-lg border border-stone-300/80 bg-stone-100/90 px-3 py-1.5 text-xs font-semibold text-stone-700 transition-colors hover:border-amber-500 hover:text-stone-950 dark:border-neutral-800 dark:bg-neutral-900/90 dark:text-neutral-300 dark:hover:border-neutral-700 dark:hover:text-white"
+              title={t("lobbyTitle")}
+              className="flex h-8.5 items-center justify-center gap-1.5 rounded-lg border border-stone-300/80 bg-stone-100/90 px-2 sm:px-2.5 text-xs font-semibold text-stone-700 transition-colors hover:border-amber-500 hover:text-stone-950 dark:border-neutral-800 dark:bg-neutral-900/90 dark:text-neutral-300 dark:hover:border-neutral-700 dark:hover:text-white shrink-0 cursor-pointer"
             >
-              {t("lobbyTitle").split(" ")[0]}
+              <Home className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <span className="hidden md:inline">{t("lobbyTitle").split(" ")[0]}</span>
             </Link>
           )}
 
           {/* User Profile & Logout */}
           {user ? (
-            <div className="flex items-center gap-2 sm:gap-3 pl-1 sm:border-l sm:border-stone-200 dark:sm:border-neutral-800">
-              <div className="flex items-center gap-2 rounded-lg bg-stone-200/70 dark:bg-neutral-900/60 px-2.5 py-1.5 ring-1 ring-stone-300 dark:ring-neutral-800">
+            <div className="flex items-center gap-1.5 sm:gap-2 pl-1 sm:border-l sm:border-stone-200 dark:sm:border-neutral-800 shrink-0">
+              <div
+                title={user.name || user.username}
+                className="flex items-center gap-1.5 rounded-lg bg-stone-200/70 dark:bg-neutral-900/60 px-2 py-1.5 sm:px-2.5 ring-1 ring-stone-300 dark:ring-neutral-800 shrink-0"
+              >
                 <User className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                <div className="flex flex-col text-left">
-                  <span className="text-xs font-semibold text-stone-900 dark:text-neutral-200 leading-none">
+                <div className="hidden sm:flex flex-col text-left max-w-[90px] md:max-w-[120px]">
+                  <span className="text-xs font-semibold text-stone-900 dark:text-neutral-200 leading-none truncate">
                     {user.name || user.username}
                   </span>
                   {user.username && user.name && (
-                    <span className="text-[10px] text-stone-500 dark:text-neutral-500 leading-none mt-0.5">
+                    <span className="text-[10px] text-stone-500 dark:text-neutral-500 leading-none mt-0.5 truncate">
                       @{user.username}
                     </span>
                   )}
@@ -148,7 +153,7 @@ export function Navbar({ user, showLobbyLink = false }: NavbarProps) {
                 disabled={isLoggingOut}
                 aria-label={t("logout")}
                 title={t("logout")}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-stone-300 bg-stone-200/80 text-stone-600 transition-all hover:border-red-400 hover:bg-red-50 hover:text-red-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:border-red-900/60 dark:hover:bg-red-950/30 dark:hover:text-red-400 disabled:opacity-50"
+                className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-stone-300 bg-stone-200/80 text-stone-600 transition-all hover:border-red-400 hover:bg-red-50 hover:text-red-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:border-red-900/60 dark:hover:bg-red-950/30 dark:hover:text-red-400 disabled:opacity-50 shrink-0 cursor-pointer"
               >
                 <LogOut className="h-4 w-4" />
               </button>
