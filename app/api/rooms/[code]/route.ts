@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRoomByCode, extractToken, verifyRoomAccess } from "@/lib/rooms";
+import { getRoomByCode, extractToken, verifyRoomAccess, deleteRoom } from "@/lib/rooms";
 import { getUserFromToken } from "@/lib/auth";
 
 export async function GET(
@@ -100,4 +100,60 @@ export async function GET(
   }
 
   return NextResponse.json({ room, recentRolls }, { status: 200 });
+}
+
+export async function DELETE(
+  req: NextRequest | Request,
+  context: { params: Promise<{ code: string }> | { code: string } }
+) {
+  const params = await context.params;
+  const code = params?.code;
+
+  if (!code || typeof code !== "string" || !code.trim()) {
+    return NextResponse.json(
+      { error: "Room code is required" },
+      { status: 400 }
+    );
+  }
+
+  const token = extractToken(req);
+  if (!token) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
+  const user = getUserFromToken(token);
+  if (!user) {
+    return NextResponse.json(
+      { error: "Invalid session" },
+      { status: 401 }
+    );
+  }
+
+  const roomRes = getRoomByCode(code);
+  if (!roomRes) {
+    return NextResponse.json(
+      { error: "Room not found" },
+      { status: 404 }
+    );
+  }
+
+  if (roomRes.room.created_by !== user.id) {
+    return NextResponse.json(
+      { error: "Only the chamber host can delete this chamber" },
+      { status: 403 }
+    );
+  }
+
+  try {
+    const success = deleteRoom(code, user.id);
+    return NextResponse.json({ success }, { status: 200 });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Failed to delete room" },
+      { status: 500 }
+    );
+  }
 }

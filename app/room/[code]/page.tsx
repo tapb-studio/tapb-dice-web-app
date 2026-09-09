@@ -15,6 +15,7 @@ import {
   Share2,
   ScrollText,
   Users,
+  Trash2,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { DiceCanvas, DiceCanvasRollTrigger } from "@/components/DiceCanvas";
@@ -70,6 +71,8 @@ export default function RoomPage() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [mobileTab, setMobileTab] = useState<"tray" | "history" | "members">("tray");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeletingRoom, setIsDeletingRoom] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const rollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -324,6 +327,11 @@ export default function RoomPage() {
       setMobileTab("tray");
     });
 
+    socket.on("room_deleted", (data: { message?: string }) => {
+      alert(data?.message || t("roomDeletedByHost"));
+      router.replace("/lobby");
+    });
+
     return () => {
       if (rollTimeoutRef.current) {
         clearTimeout(rollTimeoutRef.current);
@@ -391,6 +399,31 @@ export default function RoomPage() {
     navigator.clipboard.writeText(window.location.href);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const isOwner = Boolean(currentUser && room && room.created_by === currentUser.id);
+
+  const handleDeleteRoom = async () => {
+    if (!room || !isOwner || isDeletingRoom) return;
+    setIsDeletingRoom(true);
+    try {
+      if (socketRef.current) {
+        socketRef.current.emit("delete_room", { roomId: room.id });
+      }
+      const res = await fetch(`/api/rooms/${room.code}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        router.replace("/lobby");
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to delete room");
+        setIsDeletingRoom(false);
+      }
+    } catch {
+      alert("Failed to delete room");
+      setIsDeletingRoom(false);
+    }
   };
 
   const handleLeaveRoom = () => {
@@ -505,11 +538,23 @@ export default function RoomPage() {
               type="button"
               onClick={handleLeaveRoom}
               title={t("leaveRoom")}
-              className="flex items-center gap-1 rounded-lg border border-stone-300/80 bg-stone-100/90 px-2.5 py-1 text-xs font-semibold text-stone-500 hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-neutral-800 dark:bg-neutral-950/70 dark:text-neutral-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-400 transition-all shadow-sm"
+              className="flex items-center gap-1 rounded-lg border border-stone-300/80 bg-stone-100/90 px-2.5 py-1 text-xs font-semibold text-stone-500 hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-neutral-800 dark:bg-neutral-950/70 dark:text-neutral-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-400 transition-all shadow-sm cursor-pointer"
             >
               <LogOut className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t("leaveRoom")}</span>
             </button>
+
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(true)}
+                title={t("deleteRoom")}
+                className="flex items-center gap-1 rounded-lg border border-red-300/80 bg-red-50/90 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 hover:border-red-400 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-300 dark:hover:bg-red-900/50 transition-all shadow-sm cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t("deleteRoom")}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -688,6 +733,57 @@ export default function RoomPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-red-300 dark:border-red-900/60 bg-white dark:bg-neutral-900 p-6 shadow-2xl transition-colors">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400 border border-red-300 dark:border-red-800">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-serif text-base font-bold text-stone-900 dark:text-neutral-100">
+                  {t("deleteRoom")}
+                </h3>
+                <p className="text-xs text-stone-500 dark:text-neutral-400">
+                  {room.name} ({room.code})
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-stone-600 dark:text-neutral-300 mb-6">
+              {t("confirmDeleteRoom")}
+            </p>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeletingRoom}
+                className="rounded-xl border border-stone-200 bg-stone-100 px-3.5 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteRoom}
+                disabled={isDeletingRoom}
+                className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-red-600/20 hover:bg-red-500 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {isDeletingRoom ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>{t("deleteRoom")}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

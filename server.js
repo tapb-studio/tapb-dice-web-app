@@ -6,12 +6,44 @@ const { Server } = require("socket.io");
 const jiti = require("jiti")(__filename);
 const { calculateRoll, saveRollToDb } = jiti("./lib/dice");
 const { verifyToken, AUTH_COOKIE_NAME } = jiti("./lib/auth");
+const { getDb } = jiti("./lib/db");
 
 // In-memory room members tracking
 // roomUsers: Map<roomId, Map<socketId, { id, name, username }>>
 const roomUsers = new Map();
 // socketRooms: Map<socketId, Set<roomId>>
 const socketRooms = new Map();
+
+// Auto-cleanup timer tracking for empty rooms
+const EMPTY_ROOM_GRACE_MS = 60 * 1000; // 60 seconds grace period
+const emptyRoomTimers = new Map();
+
+function scheduleRoomCleanup(roomId) {
+  if (emptyRoomTimers.has(roomId)) {
+    clearTimeout(emptyRoomTimers.get(roomId));
+  }
+  const timer = setTimeout(() => {
+    emptyRoomTimers.delete(roomId);
+    const currentUsers = roomUsers.get(roomId);
+    if (!currentUsers || currentUsers.size === 0) {
+      try {
+        const db = getDb();
+        db.prepare("DELETE FROM dice_rolls WHERE room_id = ?").run(roomId);
+        db.prepare("DELETE FROM rooms WHERE id = ?").run(roomId);
+      } catch (err) {
+        // quiet error catch
+      }
+    }
+  }, EMPTY_ROOM_GRACE_MS);
+  emptyRoomTimers.set(roomId, timer);
+}
+
+function cancelRoomCleanup(roomId) {
+  if (emptyRoomTimers.has(roomId)) {
+    clearTimeout(emptyRoomTimers.get(roomId));
+    emptyRoomTimers.delete(roomId);
+  }
+}
 
 function getRoomUsers(roomId) {
   const usersMap = roomUsers.get(roomId);
@@ -103,6 +135,7 @@ function initSocketServer(httpServer, options = {}) {
 
       const roomChannel = `room:${roomId}`;
       socket.join(roomChannel);
+      cancelRoomCleanup(roomId);
 
       if (!roomUsers.has(roomId)) {
         roomUsers.set(roomId, new Map());
@@ -181,6 +214,41 @@ function initSocketServer(httpServer, options = {}) {
       }
     });
 
+    // Delete room explicitly by host
+    socket.on("delete_room", (data, callback) => {
+      try {
+        if (!data || !data.roomId) return;
+        const { roomId } = data;
+        const user = socket.data.user;
+        const db = getDb();
+        const room = db.prepare("SELECT * FROM rooms WHERE id = ?").get(roomId);
+        if (!room) {
+          if (typeof callback === "function") callback({ success: false, error: "Room not found" });
+          return;
+        }
+        if (!user || room.created_by !== user.id) {
+          if (typeof callback === "function") callback({ success: false, error: "Unauthorized" });
+          return;
+        }
+
+        const roomChannel = `room:${roomId}`;
+        io.to(roomChannel).emit("room_deleted", {
+          roomId,
+          message: "The chamber has been dissolved by the host.",
+        });
+
+        db.prepare("DELETE FROM dice_rolls WHERE room_id = ?").run(roomId);
+        db.prepare("DELETE FROM rooms WHERE id = ?").run(roomId);
+
+        roomUsers.delete(roomId);
+        cancelRoomCleanup(roomId);
+
+        if (typeof callback === "function") callback({ success: true });
+      } catch (err) {
+        if (typeof callback === "function") callback({ success: false, error: err.message });
+      }
+    });
+
     // Leave room
     socket.on("leave_room", (data) => {
       if (!data || !data.roomId) return;
@@ -193,6 +261,7 @@ function initSocketServer(httpServer, options = {}) {
         roomUsers.get(roomId).delete(socket.id);
         if (roomUsers.get(roomId).size === 0) {
           roomUsers.delete(roomId);
+          scheduleRoomCleanup(roomId);
         }
       }
 
@@ -218,6 +287,7 @@ function initSocketServer(httpServer, options = {}) {
             roomUsers.get(roomId).delete(socket.id);
             if (roomUsers.get(roomId).size === 0) {
               roomUsers.delete(roomId);
+              scheduleRoomCleanup(roomId);
             }
           }
           io.to(roomChannel).emit("room_users_updated", {

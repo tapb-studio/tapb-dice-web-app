@@ -117,6 +117,11 @@ export const translations = {
     diceTrayTab: "ถาดเต๋า",
     rollHistoryTab: "ประวัติการทอย",
     membersTab: "สมาชิก",
+    deleteRoom: "ลบห้อง",
+    confirmDeleteRoom: "คุณแน่ใจหรือไม่ว่าต้องการลบห้องนี้? ประวัติการทอยทั้งหมดจะถูกลบทิ้งอย่างถาวร",
+    roomDeletedByHost: "ห้องนี้ถูกปิดและลบโดยหัวหน้าห้องแล้ว",
+    deleting: "กำลังลบ...",
+    roomDeletedSuccess: "ลบห้องเรียบร้อยแล้ว",
     justNow: "เมื่อสักครู่",
   },
   en: {
@@ -231,6 +236,11 @@ export const translations = {
     diceTrayTab: "Dice Tray",
     rollHistoryTab: "Chronicle",
     membersTab: "Party",
+    deleteRoom: "Delete Chamber",
+    confirmDeleteRoom: "Are you sure you want to delete this chamber? All roll history will be permanently deleted.",
+    roomDeletedByHost: "This chamber has been dissolved by the host.",
+    deleting: "Deleting...",
+    roomDeletedSuccess: "Chamber deleted successfully",
     justNow: "Just now",
   },
 };

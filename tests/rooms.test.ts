@@ -11,10 +11,11 @@ import {
   verifyRoomAccess,
   getRoomByCode,
   listRooms,
+  deleteRoom,
 } from "@/lib/rooms";
 import { POST as createRoomHandler, GET as listRoomsHandler } from "@/app/api/rooms/route";
 import { POST as verifyRoomHandler } from "@/app/api/rooms/verify/route";
-import { GET as getRoomHandler } from "@/app/api/rooms/[code]/route";
+import { GET as getRoomHandler, DELETE as deleteRoomHandler } from "@/app/api/rooms/[code]/route";
 
 const TEST_DB_PATH = path.resolve(process.cwd(), ".tmp/test-rooms.db");
 
@@ -613,6 +614,87 @@ describe("Room Management System (Task 4)", () => {
         const wrongPassJson = await wrongPassRes.json();
         expect(wrongPassJson.recentRolls).toEqual([]);
       });
+    });
+
+    describe("DELETE /api/rooms/[code] (Delete Chamber)", () => {
+      it("allows the chamber creator to delete the room", async () => {
+        const room = await createRoom("Chamber To Delete", null, testUser.id, db);
+        const token = createToken(testUser);
+
+        const req = new NextRequest(`http://localhost:3000/api/rooms/${room.code}`, {
+          method: "DELETE",
+          headers: {
+            cookie: `token=${token}`,
+          },
+        });
+
+        const res = await deleteRoomHandler(req, { params: Promise.resolve({ code: room.code }) });
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.success).toBe(true);
+
+        // Room should no longer exist
+        expect(getRoomByCode(room.code, db)).toBeNull();
+      });
+
+      it("rejects deletion by non-creator with 403", async () => {
+        const otherUser = await registerUser("Other DM", "other_dm", "dragonPass123", db);
+        const room = await createRoom("Host Chamber", null, testUser.id, db);
+        const otherToken = createToken(otherUser);
+
+        const req = new NextRequest(`http://localhost:3000/api/rooms/${room.code}`, {
+          method: "DELETE",
+          headers: {
+            cookie: `token=${otherToken}`,
+          },
+        });
+
+        const res = await deleteRoomHandler(req, { params: Promise.resolve({ code: room.code }) });
+        expect(res.status).toBe(403);
+        const json = await res.json();
+        expect(json.error).toMatch(/Only the chamber host can delete/i);
+
+        // Room should still exist
+        expect(getRoomByCode(room.code, db)).not.toBeNull();
+      });
+
+      it("rejects unauthenticated deletion with 401", async () => {
+        const room = await createRoom("Unauth Chamber", null, testUser.id, db);
+
+        const req = new NextRequest(`http://localhost:3000/api/rooms/${room.code}`, {
+          method: "DELETE",
+        });
+
+        const res = await deleteRoomHandler(req, { params: Promise.resolve({ code: room.code }) });
+        expect(res.status).toBe(401);
+      });
+    });
+  });
+
+  describe("deleteRoom function (lib/rooms.ts)", () => {
+    it("deletes room and associated roll records from database", async () => {
+      const room = await createRoom("Guild Room", null, testUser.id, db);
+      db.prepare(
+        "INSERT INTO dice_rolls (id, room_id, user_id, user_name, dice_type, dice_count, modifier, individual_results, total, is_crit_hit, is_crit_fail, notation, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      ).run("r-del-1", room.id, testUser.id, testUser.name, "d20", 1, 0, "[15]", 15, 0, 0, "1d20", new Date().toISOString());
+
+      const deleted = deleteRoom(room.id, testUser.id, db);
+      expect(deleted).toBe(true);
+
+      expect(getRoomByCode(room.code, db)).toBeNull();
+      const remainingRolls = db.prepare("SELECT * FROM dice_rolls WHERE room_id = ?").all(room.id);
+      expect(remainingRolls).toHaveLength(0);
+    });
+
+    it("throws an error when unauthorized userId attempts deletion", async () => {
+      const room = await createRoom("Protected Guild", null, testUser.id, db);
+      expect(() => deleteRoom(room.id, "unauthorized-user-id", db)).toThrow(
+        "Unauthorized to delete this room"
+      );
+    });
+
+    it("returns false for non-existent room", () => {
+      expect(deleteRoom("NON-EXISTENT-ID", testUser.id, db)).toBe(false);
     });
   });
 });

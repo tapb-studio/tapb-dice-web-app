@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Loader2,
   Users,
+  Trash2,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { useLanguage } from "@/lib/i18n";
@@ -249,6 +250,25 @@ export default function LobbyPage() {
     setTimeout(() => {
       setCopiedCode((prev) => (prev === code ? null : prev));
     }, 2000);
+  };
+
+  const handleDeleteRoom = async (roomToDelete: RoomItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm(t("confirmDeleteRoom"))) return;
+
+    try {
+      const res = await fetch(`/api/rooms/${roomToDelete.code}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        fetchRooms();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to delete room");
+      }
+    } catch {
+      alert("Failed to delete room");
+    }
   };
 
   if (isLoadingAuth) {
@@ -508,18 +528,30 @@ export default function LobbyPage() {
                       <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400 tracking-wider">
                         {room.code}
                       </span>
-                      <button
-                        type="button"
-                        onClick={(e) => handleCopyCode(room.code, e)}
-                        title="Copy Room Code"
-                        className="p-1 text-stone-400 dark:text-neutral-400 hover:text-stone-700 dark:hover:text-neutral-200 transition-colors"
-                      >
-                        {copiedCode === room.code ? (
-                          <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => handleCopyCode(room.code, e)}
+                          title="Copy Room Code"
+                          className="p-1 text-stone-400 dark:text-neutral-400 hover:text-stone-700 dark:hover:text-neutral-200 transition-colors cursor-pointer"
+                        >
+                          {copiedCode === room.code ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                        {currentUser && room.created_by === currentUser.id && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteRoom(room, e)}
+                            title={t("deleteRoom")}
+                            className="p-1 text-stone-400 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-400 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         )}
-                      </button>
+                      </div>
                     </div>
                   </div>
 

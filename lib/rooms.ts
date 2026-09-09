@@ -265,3 +265,29 @@ export function listRooms(
     created_at: row.created_at,
   }));
 }
+
+export function deleteRoom(
+  identifier: string,
+  userId?: string,
+  db?: Database.Database
+): boolean {
+  if (!identifier || !identifier.trim()) return false;
+
+  const database = db || getDb();
+  const trimmed = identifier.trim();
+
+  const room = database
+    .prepare("SELECT * FROM rooms WHERE id = ? OR UPPER(code) = ?")
+    .get(trimmed, trimmed.toUpperCase()) as DbRoom | undefined;
+
+  if (!room) return false;
+
+  if (userId && room.created_by !== userId) {
+    throw new Error("Unauthorized to delete this room");
+  }
+
+  database.prepare("DELETE FROM dice_rolls WHERE room_id = ?").run(room.id);
+  const res = database.prepare("DELETE FROM rooms WHERE id = ?").run(room.id);
+  return res.changes > 0;
+}
+
