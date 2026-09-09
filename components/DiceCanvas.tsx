@@ -27,6 +27,9 @@ export interface DiceCanvasRollTrigger {
   count: number;
   individualResults: number[];
   notation?: string;
+  modifier?: number;
+  total?: number;
+  userName?: string;
   isCritHit?: boolean;
   isCritFail?: boolean;
 }
@@ -45,6 +48,90 @@ interface ActiveDie {
   settled: boolean;
   settleStartTime: number | null;
   targetQuat: THREE.Quaternion | null;
+  badgeSprite: THREE.Sprite | null;
+}
+
+function createNumberBadgeSprite(
+  value: number,
+  isCritHit = false,
+  isCritFail = false
+): THREE.Sprite | null {
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  const centerX = 64;
+  const centerY = 64;
+  const radius = 46;
+
+  // Background circle
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.fillStyle = isCritHit
+    ? "#92400e"
+    : isCritFail
+    ? "#7f1d1d"
+    : "rgba(18, 18, 24, 0.94)";
+  ctx.fill();
+
+  // Outer glowing ring
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = isCritHit
+    ? "#fef08a"
+    : isCritFail
+    ? "#fca5a5"
+    : "#f59e0b";
+  ctx.stroke();
+
+  // Inner subtle gold accent ring
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius - 4, 0, Math.PI * 2);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = isCritHit
+    ? "#ffffff"
+    : isCritFail
+    ? "#ef4444"
+    : "rgba(251, 191, 36, 0.4)";
+  ctx.stroke();
+
+  // Number Text
+  ctx.fillStyle = isCritHit
+    ? "#ffffff"
+    : isCritFail
+    ? "#fee2e2"
+    : "#fef3c7";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  if (value >= 100) {
+    ctx.font = "bold 38px system-ui, -apple-system, sans-serif";
+  } else if (value >= 10) {
+    ctx.font = "bold 46px system-ui, -apple-system, sans-serif";
+  } else {
+    ctx.font = "bold 52px system-ui, -apple-system, sans-serif";
+  }
+
+  ctx.fillText(String(value), centerX, centerY + 2);
+  ctx.restore();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+
+  const spriteMat = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+  });
+
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(1.35, 1.35, 1.0);
+  sprite.renderOrder = 999;
+  return sprite;
 }
 
 function disposeHierarchy(obj: THREE.Object3D): void {
@@ -411,6 +498,17 @@ export function DiceCanvas({
         for (const item of activeDice) {
           item.mesh.position.copy(item.body.position as unknown as THREE.Vector3);
 
+          if (item.badgeSprite) {
+            item.badgeSprite.position.set(
+              item.mesh.position.x,
+              item.mesh.position.y + 1.25,
+              item.mesh.position.z
+            );
+            if (item.settled) {
+              item.badgeSprite.visible = true;
+            }
+          }
+
           if (!item.settled) {
             allSettled = false;
             const linSpeed = item.body.velocity.length();
@@ -451,6 +549,9 @@ export function DiceCanvas({
                 );
                 item.body.sleep();
                 item.settled = true;
+                if (item.badgeSprite) {
+                  item.badgeSprite.visible = true;
+                }
               }
             }
           }
@@ -460,6 +561,12 @@ export function DiceCanvas({
         if (allSettled && activeDice.length > 0) {
           setIsRolling(false);
           activeDiceRef.current = []; // Animation loop complete
+
+          for (const item of renderedDiceRef.current) {
+            if (item.badgeSprite) {
+              item.badgeSprite.visible = true;
+            }
+          }
 
           const currentTrigger = rollTriggerRef.current;
           if (currentTrigger?.isCritHit) {
@@ -495,6 +602,11 @@ export function DiceCanvas({
       disposeHierarchy(frameGroup);
       for (const item of renderedDiceRef.current) {
         scene.remove(item.mesh);
+        if (item.badgeSprite) {
+          scene.remove(item.badgeSprite);
+          item.badgeSprite.material.map?.dispose();
+          item.badgeSprite.material.dispose();
+        }
         disposeHierarchy(item.mesh);
         world.removeBody(item.body);
       }
@@ -512,9 +624,14 @@ export function DiceCanvas({
     const world = worldRef.current;
     if (!scene || !world) return;
 
-    // Clear previous rendered dice meshes and bodies
+    // Clear previous rendered dice meshes, sprites, and physics bodies
     for (const item of renderedDiceRef.current) {
       scene.remove(item.mesh);
+      if (item.badgeSprite) {
+        scene.remove(item.badgeSprite);
+        item.badgeSprite.material.map?.dispose();
+        item.badgeSprite.material.dispose();
+      }
       disposeHierarchy(item.mesh);
       world.removeBody(item.body);
     }
@@ -563,8 +680,8 @@ export function DiceCanvas({
       const row = Math.floor(i / cols);
 
       const startX = (col - (cols - 1) / 2) * 2.2 + (Math.random() - 0.5) * 0.6;
-      const startY = 6.0 + row * 1.5 + Math.random() * 0.8;
-      const startZ = 4.0 + (Math.random() - 0.5) * 1.0;
+      const startY = 4.0 + row * 1.0 + Math.random() * 0.5;
+      const startZ = 3.0 + (Math.random() - 0.5) * 1.0;
 
       body.position.set(startX, startY, startZ);
 
@@ -588,6 +705,18 @@ export function DiceCanvas({
         }
       });
 
+      // Create number badge sprite for this die
+      const badgeSprite = createNumberBadgeSprite(
+        targetValue,
+        isCritHit,
+        isCritFail
+      );
+      if (badgeSprite) {
+        badgeSprite.visible = false;
+        badgeSprite.position.set(startX, startY + 1.25, startZ);
+        scene.add(badgeSprite);
+      }
+
       scene.add(mesh);
       world.addBody(body);
 
@@ -599,6 +728,7 @@ export function DiceCanvas({
         settled: false,
         settleStartTime: null,
         targetQuat: null,
+        badgeSprite,
       });
     }
 
@@ -659,22 +789,72 @@ export function DiceCanvas({
         </div>
       )}
 
-      {/* Settled Result Badge Overlay */}
-      {!isRolling && hasRolledOnce && rollTrigger && rollTrigger.individualResults?.length > 0 && (
-        <div className="absolute bottom-3 inset-x-0 flex justify-center pointer-events-none px-4">
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-xl bg-white/95 dark:bg-neutral-900/90 backdrop-blur-md border border-amber-500/50 dark:border-amber-500/40 text-stone-900 dark:text-neutral-100 shadow-xl">
-            <span className="text-xs uppercase tracking-wider text-amber-700 dark:text-amber-400 font-bold font-mono">
-              {t("total")}:
-            </span>
-            <span className="font-mono text-base font-extrabold text-stone-900 dark:text-amber-200">
-              {rollTrigger.individualResults.reduce((a, b) => a + b, 0)}
-            </span>
-            <span className="text-xs text-stone-500 dark:text-neutral-400 font-mono">
-              [{rollTrigger.individualResults.join(", ")}]
-            </span>
+      {/* Settled Result Announcement Card */}
+      {!isRolling && hasRolledOnce && rollTrigger && rollTrigger.individualResults?.length > 0 && (() => {
+        const subtotal = rollTrigger.individualResults.reduce((a, b) => a + b, 0);
+        const modifier = rollTrigger.modifier ?? 0;
+        const finalTotal = rollTrigger.total !== undefined ? rollTrigger.total : subtotal + modifier;
+        const hasModifier = modifier !== 0;
+        const formula = rollTrigger.notation || `${rollTrigger.count}${rollTrigger.diceType.toUpperCase()}${modifier > 0 ? `+${modifier}` : modifier < 0 ? `${modifier}` : ""}`;
+
+        return (
+          <div className="absolute bottom-2 sm:bottom-3 inset-x-0 flex justify-center pointer-events-none px-2 sm:px-4 z-20">
+            <div className="w-full max-w-sm sm:max-w-md rounded-2xl sm:rounded-3xl border-2 border-amber-500/70 bg-white/95 dark:border-amber-500/50 dark:bg-neutral-900/95 backdrop-blur-md px-3.5 py-2.5 sm:px-5 sm:py-3 shadow-2xl shadow-amber-950/20 dark:shadow-amber-500/10 flex flex-col items-center text-center transition-all animate-in fade-in zoom-in-95 duration-300 pointer-events-auto">
+              {/* Header: User & Formula */}
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5">
+                <span className="px-2 py-0.5 rounded-md text-[11px] sm:text-xs font-bold font-mono tracking-wider bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60">
+                  🎲 {formula}
+                </span>
+                {rollTrigger.userName && (
+                  <span className="text-[11px] sm:text-xs font-medium text-stone-600 dark:text-neutral-400 truncate max-w-[160px]">
+                    {rollTrigger.userName}
+                  </span>
+                )}
+              </div>
+
+              {/* Hero Final Total */}
+              <div className="flex items-baseline justify-center gap-2 sm:gap-3 my-0.5">
+                <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400 font-mono">
+                  {t("finalTotal") || t("total")}:
+                </span>
+                <span className="font-mono text-3xl sm:text-5xl font-black text-amber-600 dark:text-amber-300 drop-shadow-[0_2px_10px_rgba(245,158,11,0.35)]">
+                  {finalTotal}
+                </span>
+              </div>
+
+              {/* Detailed Breakdown: Dice [x, y] +/- Modifier */}
+              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-1 pt-1.5 border-t border-stone-200/80 dark:border-neutral-800 text-xs font-mono w-full">
+                {/* Dice Outcomes */}
+                <div className="flex items-center gap-1 text-stone-700 dark:text-neutral-300">
+                  <span className="text-[10px] sm:text-[11px] text-stone-500 dark:text-neutral-400">{t("diceSubtotal") || "แต้มเต๋า"}:</span>
+                  <span className="font-bold text-stone-900 dark:text-neutral-100">
+                    {rollTrigger.individualResults.length > 1 ? `${subtotal} ` : ""}
+                    <span className="text-stone-500 dark:text-neutral-400 font-normal">
+                      [{rollTrigger.individualResults.join(", ")}]
+                    </span>
+                  </span>
+                </div>
+
+                {/* Modifier Pill */}
+                {hasModifier && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-stone-400 dark:text-neutral-500">•</span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded font-bold text-[10px] sm:text-xs ${
+                        modifier > 0
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60"
+                          : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800/60"
+                      }`}
+                    >
+                      {t("modifier") || "Modifier"}: {modifier > 0 ? `+${modifier}` : modifier}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
