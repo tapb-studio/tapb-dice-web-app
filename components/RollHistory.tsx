@@ -38,26 +38,26 @@ export function RollHistory({ rolls, className = "" }: RollHistoryProps) {
 
   return (
     <div
-      className={`flex flex-col h-full rounded-2xl border border-stone-200 bg-white/80 dark:border-neutral-800 dark:bg-neutral-900/70 backdrop-blur-md overflow-hidden shadow-sm transition-colors ${className}`}
+      className={`flex flex-col h-full min-h-0 rounded-2xl border border-stone-300/80 bg-white/95 dark:border-neutral-800 dark:bg-neutral-900/90 backdrop-blur-md overflow-hidden shadow-sm transition-colors ${className}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3 bg-stone-50/80 dark:border-neutral-800 dark:bg-neutral-950/50">
+      <div className="flex items-center justify-between border-b border-stone-200/90 px-3 py-2 sm:px-3.5 sm:py-2 bg-stone-50/90 dark:border-neutral-800 dark:bg-neutral-950/50">
         <div className="flex items-center gap-2">
-          <ScrollText className="h-4 w-4 text-amber-500 dark:text-amber-400" />
-          <h3 className="font-serif text-sm font-bold text-stone-800 dark:text-amber-100">
+          <ScrollText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <h3 className="font-serif text-xs sm:text-sm font-bold text-stone-900 dark:text-amber-100">
             {t("rollHistory")}
           </h3>
         </div>
-        <span className="rounded-full bg-stone-200/80 dark:bg-neutral-800 px-2 py-0.5 text-[11px] font-mono text-stone-600 dark:text-neutral-400">
+        <span className="rounded-full bg-stone-200/90 dark:bg-neutral-800 px-2 py-0.5 text-[10px] sm:text-[11px] font-mono text-stone-700 dark:text-neutral-400">
           {rolls.length} {rolls.length === 1 ? t("singleRollLabel") : t("rollsLabel")}
         </span>
       </div>
 
       {/* Rolls List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2.5 max-h-[460px]">
+      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-2">
         {rolls.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center text-stone-400 dark:text-neutral-500">
-            <ScrollText className="h-8 w-8 text-stone-300 dark:text-neutral-600 mb-2" />
+          <div className="flex flex-col items-center justify-center py-8 text-center text-stone-400 dark:text-neutral-500">
+            <ScrollText className="h-7 w-7 text-stone-300 dark:text-neutral-600 mb-1.5" />
             <p className="text-xs font-medium text-stone-600 dark:text-neutral-400">{t("chronicleUnwritten")}</p>
             <p className="text-[11px] text-stone-400 dark:text-neutral-500 mt-0.5">
               {t("rollDiceToRecordFate")}

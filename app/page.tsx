@@ -120,7 +120,7 @@ export default function AuthPage() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-stone-100 dark:bg-neutral-950 flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center p-4 transition-colors">
         <div className="flex flex-col items-center gap-3">
           <Dices className="h-10 w-10 text-amber-500 animate-spin" />
           <p className="text-sm font-medium text-stone-600 dark:text-amber-200/70 font-mono tracking-wide">
@@ -132,7 +132,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-100 dark:bg-neutral-950 text-stone-900 dark:text-neutral-100 flex flex-col transition-colors duration-200">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col transition-colors">
       <Navbar />
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8 relative overflow-hidden">

@@ -8,7 +8,7 @@
 }
 
 html.light {
-  --background: #fbf9f5;
+  --background: #f5f1e8;
   --foreground: #1c1917;
 }
 
@@ -29,22 +29,24 @@ body {
   color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
-  min-height: 100vh;
-  overflow-x: hidden;
+  height: 100%;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Custom fantasy scrollbar */
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #09090b;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: #d6d3d1;
   border-radius: 9999px;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #27272a;
   border: 1px solid #3f3f46;
 }
 ::-webkit-scrollbar-thumb:hover {

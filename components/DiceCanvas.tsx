@@ -18,6 +18,8 @@ import {
   playCritFailSound,
 } from "@/lib/audio";
 import { Sparkles, Dices, AlertTriangle, Trophy } from "lucide-react";
+import { useTheme } from "@/lib/theme";
+import { useLanguage } from "@/lib/i18n";
 
 export interface DiceCanvasRollTrigger {
   id: string;
@@ -63,6 +65,8 @@ export function DiceCanvas({
   onRollComplete,
   className = "",
 }: DiceCanvasProps) {
+  const { theme } = useTheme();
+  const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -84,6 +88,38 @@ export function DiceCanvas({
   const animFrameIdRef = useRef<number | null>(null);
   const rollStartTimeRef = useRef<number>(0);
 
+  // Material and lighting references for dynamic theme switching
+  const floorMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const frameMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const goldTrimMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
+  const dirLightRef = useRef<THREE.DirectionalLight | null>(null);
+
+  // Dynamic theme update for 3D tray
+  useEffect(() => {
+    const isLight = theme === "light";
+    if (sceneRef.current) {
+      sceneRef.current.background = new THREE.Color(isLight ? 0xefeae0 : 0x0a0a0c);
+    }
+    if (floorMatRef.current) {
+      floorMatRef.current.color.setHex(isLight ? 0x1a402d : 0x14121a);
+    }
+    if (frameMatRef.current) {
+      frameMatRef.current.color.setHex(isLight ? 0x4a2a16 : 0x23140a);
+    }
+    if (goldTrimMatRef.current) {
+      goldTrimMatRef.current.color.setHex(isLight ? 0xd4af37 : 0xd97706);
+    }
+    if (ambientLightRef.current) {
+      ambientLightRef.current.color.setHex(isLight ? 0xfff7ed : 0xdbeafe);
+      ambientLightRef.current.intensity = isLight ? 0.95 : 0.65;
+    }
+    if (dirLightRef.current) {
+      dirLightRef.current.color.setHex(0xffedd5);
+      dirLightRef.current.intensity = isLight ? 1.5 : 1.4;
+    }
+  }, [theme]);
+
   // Initialize Three.js scene & Cannon-es physics world
   useEffect(() => {
     const container = containerRef.current;
@@ -91,8 +127,9 @@ export function DiceCanvas({
     if (!container || !canvas) return;
 
     // 1. Scene setup
+    const isLightInit = theme === "light";
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0a0c);
+    scene.background = new THREE.Color(isLightInit ? 0xefeae0 : 0x0a0a0c);
     sceneRef.current = scene;
 
     // 2. Camera setup
@@ -117,10 +154,11 @@ export function DiceCanvas({
     renderer.toneMappingExposure = 1.15;
 
     // 4. Lighting setup
-    const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.65);
+    const ambientLight = new THREE.AmbientLight(isLightInit ? 0xfff7ed : 0xdbeafe, isLightInit ? 0.95 : 0.65);
+    ambientLightRef.current = ambientLight;
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffedd5, 1.4);
+    const dirLight = new THREE.DirectionalLight(0xffedd5, isLightInit ? 1.5 : 1.4);
     dirLight.position.set(6, 18, 8);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 1024;
@@ -132,6 +170,7 @@ export function DiceCanvas({
     dirLight.shadow.camera.top = 8;
     dirLight.shadow.camera.bottom = -8;
     dirLight.shadow.bias = -0.0015;
+    dirLightRef.current = dirLight;
     scene.add(dirLight);
 
     const rimLight = new THREE.PointLight(0xf59e0b, 0.8, 30);
@@ -150,25 +189,28 @@ export function DiceCanvas({
 
     const floorGeo = new THREE.PlaneGeometry(trayWidth, trayDepth);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x14121a,
+      color: isLightInit ? 0x1a402d : 0x14121a,
       roughness: 0.85,
       metalness: 0.05,
     });
+    floorMatRef.current = floorMat;
     const floorMesh = new THREE.Mesh(floorGeo, floorMat);
     floorMesh.rotation.x = -Math.PI / 2;
     floorMesh.receiveShadow = true;
     scene.add(floorMesh);
 
     const frameMat = new THREE.MeshStandardMaterial({
-      color: 0x23140a,
+      color: isLightInit ? 0x4a2a16 : 0x23140a,
       roughness: 0.4,
       metalness: 0.15,
     });
+    frameMatRef.current = frameMat;
     const goldTrimMat = new THREE.MeshStandardMaterial({
-      color: 0xd97706,
+      color: isLightInit ? 0xd4af37 : 0xd97706,
       roughness: 0.3,
       metalness: 0.7,
     });
+    goldTrimMatRef.current = goldTrimMat;
 
     const frameGroup = new THREE.Group();
 
@@ -467,7 +509,7 @@ export function DiceCanvas({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-[380px] md:h-[480px] select-none overflow-hidden rounded-2xl border border-amber-900/40 bg-radial from-neutral-900 to-neutral-950 shadow-2xl ${className}`}
+      className={`relative w-full h-full min-h-0 select-none overflow-hidden rounded-2xl border border-stone-300/80 bg-stone-100 dark:border-amber-950/60 dark:bg-neutral-950 shadow-md dark:shadow-2xl transition-colors ${className}`}
     >
       <canvas
         ref={canvasRef}
@@ -476,12 +518,12 @@ export function DiceCanvas({
 
       {/* Idle / Initial State Indicator */}
       {!hasRolledOnce && !isRolling && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-6 text-center">
-          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-neutral-900/80 backdrop-blur-md border border-amber-500/30 text-amber-300 text-sm font-medium shadow-lg animate-pulse">
-            <Dices className="w-4 h-4 text-amber-400" />
-            <span>Click Roll to cast dice</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/90 dark:bg-neutral-900/85 backdrop-blur-md border border-amber-500/50 dark:border-amber-500/30 text-amber-900 dark:text-amber-300 text-xs sm:text-sm font-medium shadow-md animate-pulse">
+            <Dices className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <span>{t("diceTrayIdle")}</span>
           </div>
-          <p className="text-xs text-neutral-500 mt-2 font-mono">
+          <p className="text-[11px] text-stone-500 dark:text-neutral-500 mt-2 font-mono">
             3D Physics Tray • D&D Polyhedral System
           </p>
         </div>
@@ -489,19 +531,19 @@ export function DiceCanvas({
 
       {/* Active Rolling Badge */}
       {isRolling && (
-        <div className="absolute top-4 left-4 pointer-events-none">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900/80 backdrop-blur-sm border border-neutral-700/60 text-neutral-300 text-xs font-mono shadow-md">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-            <span>Rolling {rollTrigger?.notation || `${rollTrigger?.count}${rollTrigger?.diceType}`}...</span>
+        <div className="absolute top-3 left-3 pointer-events-none">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/95 dark:bg-neutral-900/85 backdrop-blur-sm border border-stone-300 dark:border-neutral-700/60 text-stone-800 dark:text-neutral-300 text-xs font-mono shadow-md">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-spin" />
+            <span>{t("rolling")} {rollTrigger?.notation || `${rollTrigger?.count}${rollTrigger?.diceType}`}...</span>
           </div>
         </div>
       )}
 
       {/* Critical Hit / Natural 20 Celebration Banner */}
       {critStatus === "hit" && (
-        <div className="absolute top-4 inset-x-0 flex justify-center pointer-events-none">
-          <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-gradient-to-r from-amber-600/90 via-yellow-500/90 to-amber-600/90 text-neutral-950 font-bold text-sm tracking-wide shadow-xl shadow-amber-500/20 animate-bounce">
-            <Trophy className="w-4 h-4 text-neutral-950" />
+        <div className="absolute top-3 inset-x-0 flex justify-center pointer-events-none px-4">
+          <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-stone-950 font-bold text-xs sm:text-sm tracking-wide shadow-xl shadow-amber-500/20 animate-bounce">
+            <Trophy className="w-4 h-4 text-stone-950 shrink-0" />
             <span>CRITICAL HIT! NATURAL 20!</span>
           </div>
         </div>
@@ -509,9 +551,9 @@ export function DiceCanvas({
 
       {/* Critical Failure / Natural 1 Banner */}
       {critStatus === "fail" && (
-        <div className="absolute top-4 inset-x-0 flex justify-center pointer-events-none">
-          <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-gradient-to-r from-red-700/90 via-rose-600/90 to-red-700/90 text-white font-bold text-sm tracking-wide shadow-xl shadow-red-600/30">
-            <AlertTriangle className="w-4 h-4 text-white" />
+        <div className="absolute top-3 inset-x-0 flex justify-center pointer-events-none px-4">
+          <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-gradient-to-r from-red-600 via-rose-500 to-red-600 text-white font-bold text-xs sm:text-sm tracking-wide shadow-xl shadow-red-600/30">
+            <AlertTriangle className="w-4 h-4 text-white shrink-0" />
             <span>CRITICAL FAILURE! NATURAL 1</span>
           </div>
         </div>
@@ -519,19 +561,17 @@ export function DiceCanvas({
 
       {/* Settled Result Badge Overlay */}
       {!isRolling && hasRolledOnce && rollTrigger && rollTrigger.individualResults?.length > 0 && (
-        <div className="absolute bottom-4 inset-x-0 flex justify-center pointer-events-none px-4">
-          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-neutral-900/90 backdrop-blur-md border border-amber-500/40 text-neutral-100 shadow-xl">
-            <span className="text-xs uppercase tracking-wider text-amber-400 font-bold font-mono">
-              Result:
+        <div className="absolute bottom-3 inset-x-0 flex justify-center pointer-events-none px-4">
+          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-xl bg-white/95 dark:bg-neutral-900/90 backdrop-blur-md border border-amber-500/50 dark:border-amber-500/40 text-stone-900 dark:text-neutral-100 shadow-xl">
+            <span className="text-xs uppercase tracking-wider text-amber-700 dark:text-amber-400 font-bold font-mono">
+              {t("total")}:
             </span>
-            <span className="font-mono text-sm font-bold text-amber-200">
-              {rollTrigger.individualResults.join(", ")}
+            <span className="font-mono text-base font-extrabold text-stone-900 dark:text-amber-200">
+              {rollTrigger.individualResults.reduce((a, b) => a + b, 0)}
             </span>
-            {rollTrigger.individualResults.length > 1 && (
-              <span className="text-xs text-neutral-400 font-mono">
-                (Total: {rollTrigger.individualResults.reduce((a, b) => a + b, 0)})
-              </span>
-            )}
+            <span className="text-xs text-stone-500 dark:text-neutral-400 font-mono">
+              [{rollTrigger.individualResults.join(", ")}]
+            </span>
           </div>
         </div>
       )}

@@ -426,20 +426,20 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col transition-colors">
+    <div className="h-screen max-h-screen w-screen overflow-hidden bg-[var(--background)] text-[var(--foreground)] flex flex-col transition-colors">
       <Navbar user={currentUser} showLobbyLink={true} />
 
       {/* Main Room Layout */}
-      <main className="flex-1 mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8 flex flex-col gap-4">
+      <main className="flex-1 min-h-0 w-full max-w-[1700px] mx-auto p-2 sm:p-3 flex flex-col gap-2 overflow-hidden">
         {/* Room Header Banner */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white/80 dark:border-neutral-800 dark:bg-neutral-900/80 px-4 py-3 sm:px-6 sm:py-3.5 backdrop-blur-md shadow-sm transition-colors">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white dark:text-neutral-950 font-bold shadow-md shadow-amber-600/20">
-              <Dices className="h-5 w-5" />
+        <div className="shrink-0 flex items-center justify-between gap-2 rounded-xl border border-stone-300/80 bg-white/95 dark:border-neutral-800 dark:bg-neutral-900/90 px-3 py-1.5 sm:px-4 sm:py-2 backdrop-blur-md shadow-sm transition-colors">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 text-white dark:text-neutral-950 font-bold shadow-sm">
+              <Dices className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="font-serif text-base sm:text-lg font-bold text-stone-900 dark:text-amber-100 truncate">
+              <div className="flex items-center gap-1.5">
+                <h1 className="font-serif text-sm sm:text-base font-bold text-stone-900 dark:text-amber-100 truncate">
                   {room.name}
                 </h1>
                 {room.hasPassword && (
@@ -448,19 +448,19 @@ export default function RoomPage() {
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-neutral-400 font-mono">
+              <div className="flex items-center gap-1.5 text-[11px] text-stone-500 dark:text-neutral-400 font-mono">
                 <span>{t("enterRoomCode")}:</span>
-                <span className="font-bold text-amber-600 dark:text-amber-400">{room.code}</span>
+                <span className="font-bold text-amber-700 dark:text-amber-400">{room.code}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={handleCopyCode}
               title={t("copyCode")}
-              className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs font-semibold text-stone-700 hover:border-amber-400 hover:text-stone-900 dark:border-neutral-800 dark:bg-neutral-950/70 dark:text-neutral-300 dark:hover:border-amber-500/50 dark:hover:text-white transition-all shadow-sm"
+              className="flex items-center gap-1 rounded-lg border border-stone-300/80 bg-stone-100/90 px-2.5 py-1 text-xs font-semibold text-stone-700 hover:border-amber-400 hover:text-stone-950 dark:border-neutral-800 dark:bg-neutral-950/70 dark:text-neutral-300 dark:hover:border-amber-500/50 dark:hover:text-white transition-all shadow-sm"
             >
               {copiedCode ? (
                 <>
@@ -479,7 +479,7 @@ export default function RoomPage() {
               type="button"
               onClick={handleShareLink}
               title={t("shareLink")}
-              className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs font-semibold text-stone-700 hover:border-amber-400 hover:text-stone-900 dark:border-neutral-800 dark:bg-neutral-950/70 dark:text-neutral-300 dark:hover:border-amber-500/50 dark:hover:text-white transition-all shadow-sm"
+              className="flex items-center gap-1 rounded-lg border border-stone-300/80 bg-stone-100/90 px-2.5 py-1 text-xs font-semibold text-stone-700 hover:border-amber-400 hover:text-stone-950 dark:border-neutral-800 dark:bg-neutral-950/70 dark:text-neutral-300 dark:hover:border-amber-500/50 dark:hover:text-white transition-all shadow-sm"
             >
               {copiedLink ? (
                 <>
@@ -498,7 +498,7 @@ export default function RoomPage() {
               type="button"
               onClick={handleLeaveRoom}
               title={t("leaveRoom")}
-              className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs font-semibold text-stone-500 hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-neutral-800 dark:bg-neutral-950/70 dark:text-neutral-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-400 transition-all shadow-sm"
+              className="flex items-center gap-1 rounded-lg border border-stone-300/80 bg-stone-100/90 px-2.5 py-1 text-xs font-semibold text-stone-500 hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-neutral-800 dark:bg-neutral-950/70 dark:text-neutral-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-400 transition-all shadow-sm"
             >
               <LogOut className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t("leaveRoom")}</span>
@@ -507,15 +507,15 @@ export default function RoomPage() {
         </div>
 
         {/* Center Stage & Sidebar Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1">
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-2.5 overflow-hidden">
           {/* Stage Column (3D Canvas + Controls) */}
-          <div className="lg:col-span-8 flex flex-col gap-4">
+          <div className="lg:col-span-8 flex flex-col min-h-0 h-full gap-2 overflow-hidden">
             {/* 3D Dice Tray Stage */}
-            <div className="w-full">
+            <div className="flex-1 min-h-0 w-full relative">
               <DiceCanvas
                 rollTrigger={rollTrigger}
                 onRollComplete={handleRollComplete}
-                className="w-full min-h-[340px] sm:min-h-[420px] lg:min-h-[460px]"
+                className="w-full h-full"
               />
             </div>
 
@@ -523,21 +523,23 @@ export default function RoomPage() {
             <DiceControls
               onRoll={handleRoll}
               disabled={isRolling || !isVerified}
+              className="shrink-0"
             />
           </div>
 
           {/* Right Column: Members & Chronicle */}
-          <div className="lg:col-span-4 flex flex-col gap-4">
+          <div className="lg:col-span-4 flex flex-col min-h-0 h-full gap-2 overflow-hidden">
             {/* Active Members */}
             <RoomMembers
               members={members}
               currentUserId={currentUser?.id}
+              className="shrink-0"
             />
 
             {/* Real-Time Roll History */}
             <RollHistory
               rolls={rollHistory}
-              className="flex-1"
+              className="flex-1 min-h-0"
             />
           </div>
         </div>

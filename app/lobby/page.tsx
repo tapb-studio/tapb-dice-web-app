@@ -253,7 +253,7 @@ export default function LobbyPage() {
 
   if (isLoadingAuth) {
     return (
-      <div className="min-h-screen bg-stone-100 dark:bg-neutral-950 flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center p-4 transition-colors">
         <Dices className="h-10 w-10 text-amber-500 animate-spin" />
         <p className="text-sm font-medium text-stone-600 dark:text-amber-200/70 mt-3 font-mono">
           {t("signingIn")}
@@ -263,7 +263,7 @@ export default function LobbyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-100 dark:bg-neutral-950 text-stone-900 dark:text-neutral-100 flex flex-col transition-colors duration-200">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col transition-colors">
       <Navbar user={currentUser} />
 
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

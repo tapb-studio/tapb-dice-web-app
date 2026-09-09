@@ -25,24 +25,24 @@ export function RoomMembers({
 
   return (
     <div
-      className={`rounded-2xl border border-stone-200 bg-white/80 dark:border-neutral-800 dark:bg-neutral-900/70 backdrop-blur-md overflow-hidden shadow-sm transition-colors ${className}`}
+      className={`rounded-2xl border border-stone-300/80 bg-white/95 dark:border-neutral-800 dark:bg-neutral-900/90 backdrop-blur-md overflow-hidden shadow-sm transition-colors ${className}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3 bg-stone-50/80 dark:border-neutral-800 dark:bg-neutral-950/50">
+      <div className="flex items-center justify-between border-b border-stone-200/90 px-3 py-2 sm:px-3.5 sm:py-2 bg-stone-50/90 dark:border-neutral-800 dark:bg-neutral-950/50">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-          <h3 className="font-serif text-sm font-bold text-stone-800 dark:text-amber-100">
+          <h3 className="font-serif text-xs sm:text-sm font-bold text-stone-900 dark:text-amber-100">
             {t("activeParty")}
           </h3>
         </div>
-        <span className="flex items-center gap-1.5 rounded-full bg-emerald-100/80 border border-emerald-300/60 dark:bg-emerald-950/60 dark:border-emerald-800/40 px-2 py-0.5 text-[11px] font-mono text-emerald-800 dark:text-emerald-300">
+        <span className="flex items-center gap-1.5 rounded-full bg-emerald-100/90 border border-emerald-300/70 dark:bg-emerald-950/60 dark:border-emerald-800/40 px-2 py-0.5 text-[10px] sm:text-[11px] font-mono text-emerald-800 dark:text-emerald-300">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
           <span>{members.length}</span>
         </span>
       </div>
 
       {/* Member List */}
-      <div className="p-3 space-y-1.5 max-h-[220px] overflow-y-auto">
+      <div className="p-2 space-y-1 overflow-y-auto max-h-[130px]">
         {members.length === 0 ? (
           <p className="text-xs text-stone-400 dark:text-neutral-500 py-2 text-center">
             {t("noMembersDetected")}
@@ -54,10 +54,10 @@ export function RoomMembers({
             return (
               <div
                 key={member.id}
-                className={`flex items-center justify-between rounded-xl px-2.5 py-2 transition-colors ${
+                className={`flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
                   isMe
-                    ? "bg-amber-100/60 border border-amber-300/60 dark:bg-amber-950/30 dark:border-amber-800/30"
-                    : "bg-stone-50/80 border border-stone-200 hover:border-stone-300 dark:bg-neutral-950/50 dark:border-neutral-800/60 dark:hover:border-neutral-700"
+                    ? "bg-amber-50/90 border border-amber-300/80 text-stone-900 dark:bg-amber-950/30 dark:border-amber-800/30"
+                    : "bg-stone-50/90 border border-stone-200/90 hover:border-stone-300 text-stone-800 dark:bg-neutral-950/50 dark:border-neutral-800/60 dark:hover:border-neutral-700"
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
