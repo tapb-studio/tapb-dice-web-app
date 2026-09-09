@@ -150,8 +150,8 @@ NODE_ENV=development
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **Node.js**: v18.17.0+ or v20+ recommended
-- **npm**: v9+ or v10+
+- **Node.js**: `v22+` (per project runtime requirements)
+- **npm**: `10+` (or yarn / pnpm / bun)
 
 ### Installation
 
