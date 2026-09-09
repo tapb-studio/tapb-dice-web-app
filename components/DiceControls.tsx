@@ -99,10 +99,10 @@ export function DiceControls({
         </div>
       </div>
 
-      {/* 2. Count, Modifier & Cast Button (Horizontal Responsive Bar) */}
-      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 mt-2.5">
+      {/* 2. Count, Modifier & Cast Button (Responsive 2-Col on mobile, 1-Row on sm+) */}
+      <div className="grid grid-cols-2 sm:flex sm:flex-nowrap items-center gap-1.5 sm:gap-2 mt-2">
         {/* Dice Count */}
-        <div className="flex items-center justify-between gap-1.5 rounded-xl border border-stone-300/80 dark:border-neutral-800 bg-stone-100/90 dark:bg-neutral-950/60 px-2.5 py-1.5 h-10 shrink-0">
+        <div className="flex items-center justify-between gap-1 rounded-xl border border-stone-300/80 dark:border-neutral-800 bg-stone-100/90 dark:bg-neutral-950/60 px-2 sm:px-2.5 py-1 h-9 sm:h-10">
           <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-neutral-400">
             {t("count")}:
           </span>
@@ -111,19 +111,19 @@ export function DiceControls({
               type="button"
               disabled={disabled || count <= 1}
               onClick={() => handleCountChange(-1)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-stone-700 dark:text-neutral-300 hover:border-amber-400 hover:text-stone-900 dark:hover:border-neutral-700 dark:hover:text-white transition-colors disabled:opacity-40 cursor-pointer"
+              className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg border border-stone-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-stone-700 dark:text-neutral-300 hover:border-amber-400 hover:text-stone-900 dark:hover:border-neutral-700 dark:hover:text-white transition-colors disabled:opacity-40 cursor-pointer"
               aria-label="Decrease dice count"
             >
               <Minus className="h-3 w-3" />
             </button>
-            <span className="w-5 text-center font-mono text-sm font-extrabold text-amber-800 dark:text-amber-200">
+            <span className="w-5 text-center font-mono text-xs sm:text-sm font-extrabold text-amber-800 dark:text-amber-200">
               {count}
             </span>
             <button
               type="button"
               disabled={disabled || count >= 20}
               onClick={() => handleCountChange(1)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-stone-700 dark:text-neutral-300 hover:border-amber-400 hover:text-stone-900 dark:hover:border-neutral-700 dark:hover:text-white transition-colors disabled:opacity-40 cursor-pointer"
+              className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg border border-stone-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-stone-700 dark:text-neutral-300 hover:border-amber-400 hover:text-stone-900 dark:hover:border-neutral-700 dark:hover:text-white transition-colors disabled:opacity-40 cursor-pointer"
               aria-label="Increase dice count"
             >
               <Plus className="h-3 w-3" />
@@ -132,7 +132,7 @@ export function DiceControls({
         </div>
 
         {/* Modifier */}
-        <div className="flex items-center justify-between gap-1.5 rounded-xl border border-stone-300/80 dark:border-neutral-800 bg-stone-100/90 dark:bg-neutral-950/60 px-2.5 py-1.5 h-10 shrink-0">
+        <div className="flex items-center justify-between gap-1 rounded-xl border border-stone-300/80 dark:border-neutral-800 bg-stone-100/90 dark:bg-neutral-950/60 px-2 sm:px-2.5 py-1 h-9 sm:h-10">
           <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-neutral-400">
             {t("modifier")}:
           </span>
@@ -141,19 +141,19 @@ export function DiceControls({
               type="button"
               disabled={disabled || modifier <= -100}
               onClick={() => handleModifierChange(-1)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-stone-700 dark:text-neutral-300 hover:border-amber-400 hover:text-stone-900 dark:hover:border-neutral-700 dark:hover:text-white transition-colors disabled:opacity-40 cursor-pointer"
+              className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg border border-stone-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-stone-700 dark:text-neutral-300 hover:border-amber-400 hover:text-stone-900 dark:hover:border-neutral-700 dark:hover:text-white transition-colors disabled:opacity-40 cursor-pointer"
               aria-label="Decrease modifier"
             >
               <Minus className="h-3 w-3" />
             </button>
-            <span className="w-7 text-center font-mono text-sm font-extrabold text-amber-800 dark:text-amber-200">
+            <span className="w-6 sm:w-7 text-center font-mono text-xs sm:text-sm font-extrabold text-amber-800 dark:text-amber-200">
               {modifier > 0 ? `+${modifier}` : modifier}
             </span>
             <button
               type="button"
               disabled={disabled || modifier >= 100}
               onClick={() => handleModifierChange(1)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-stone-700 dark:text-neutral-300 hover:border-amber-400 hover:text-stone-900 dark:hover:border-neutral-700 dark:hover:text-white transition-colors disabled:opacity-40 cursor-pointer"
+              className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg border border-stone-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-stone-700 dark:text-neutral-300 hover:border-amber-400 hover:text-stone-900 dark:hover:border-neutral-700 dark:hover:text-white transition-colors disabled:opacity-40 cursor-pointer"
               aria-label="Increase modifier"
             >
               <Plus className="h-3 w-3" />
@@ -164,7 +164,7 @@ export function DiceControls({
                 disabled={disabled}
                 onClick={() => setModifier(0)}
                 title="Reset modifier"
-                className="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-300 dark:border-neutral-800/80 bg-white dark:bg-neutral-900 text-stone-400 hover:text-stone-700 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors cursor-pointer"
+                className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg border border-stone-300 dark:border-neutral-800/80 bg-white dark:bg-neutral-900 text-stone-400 hover:text-stone-700 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors cursor-pointer"
               >
                 <RotateCcw className="h-3 w-3" />
               </button>
@@ -177,7 +177,7 @@ export function DiceControls({
           type="button"
           disabled={disabled}
           onClick={handleRoll}
-          className="flex-1 min-w-[160px] h-10 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-500 text-white dark:text-neutral-950 font-bold shadow-md shadow-amber-600/20 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none transition-all cursor-pointer"
+          className="col-span-2 sm:flex-1 sm:min-w-[140px] h-9 sm:h-10 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-500 text-white dark:text-neutral-950 font-bold shadow-md shadow-amber-600/20 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none transition-all cursor-pointer"
         >
           <Dices className={`h-4 w-4 stroke-[2.2] ${disabled ? "animate-spin" : ""}`} />
           <span className="font-mono text-xs sm:text-sm uppercase tracking-wider truncate">

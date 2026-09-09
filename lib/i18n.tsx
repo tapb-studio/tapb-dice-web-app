@@ -112,6 +112,9 @@ export const translations = {
     chamberInaccessible: "ไม่สามารถเข้าสู่ห้องได้",
     roomNotFound: "ไม่พบข้อมูลห้องผจญภัยนี้",
     returnToLobby: "กลับสู่ห้องโถงผจญภัย",
+    diceTrayTab: "ถาดเต๋า",
+    rollHistoryTab: "ประวัติการทอย",
+    membersTab: "สมาชิก",
     justNow: "เมื่อสักครู่",
   },
   en: {
@@ -221,6 +224,9 @@ export const translations = {
     chamberInaccessible: "Chamber Inaccessible",
     roomNotFound: "Room not found.",
     returnToLobby: "Return to Tavern Lobby",
+    diceTrayTab: "Dice Tray",
+    rollHistoryTab: "Chronicle",
+    membersTab: "Party",
     justNow: "Just now",
   },
 };

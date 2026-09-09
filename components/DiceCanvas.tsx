@@ -89,7 +89,9 @@ export function DiceCanvas({
   const rollStartTimeRef = useRef<number>(0);
 
   // Material and lighting references for dynamic theme switching
+  const tableMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
   const floorMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const innerBorderMatRef = useRef<THREE.LineBasicMaterial | null>(null);
   const frameMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
   const goldTrimMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
   const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
@@ -99,20 +101,26 @@ export function DiceCanvas({
   useEffect(() => {
     const isLight = theme === "light";
     if (sceneRef.current) {
-      sceneRef.current.background = new THREE.Color(isLight ? 0xefeae0 : 0x0a0a0c);
+      sceneRef.current.background = new THREE.Color(isLight ? 0xf4eee2 : 0x09090c);
+    }
+    if (tableMatRef.current) {
+      tableMatRef.current.color.setHex(isLight ? 0xdfd6c3 : 0x0e0d13);
     }
     if (floorMatRef.current) {
-      floorMatRef.current.color.setHex(isLight ? 0x1a402d : 0x14121a);
+      floorMatRef.current.color.setHex(isLight ? 0x16462d : 0x221832);
+    }
+    if (innerBorderMatRef.current) {
+      innerBorderMatRef.current.color.setHex(isLight ? 0xd4af37 : 0xe5a93c);
     }
     if (frameMatRef.current) {
-      frameMatRef.current.color.setHex(isLight ? 0x4a2a16 : 0x23140a);
+      frameMatRef.current.color.setHex(isLight ? 0x6a3818 : 0x442716);
     }
     if (goldTrimMatRef.current) {
-      goldTrimMatRef.current.color.setHex(isLight ? 0xd4af37 : 0xd97706);
+      goldTrimMatRef.current.color.setHex(isLight ? 0xd4af37 : 0xe5a93c);
     }
     if (ambientLightRef.current) {
       ambientLightRef.current.color.setHex(isLight ? 0xfff7ed : 0xdbeafe);
-      ambientLightRef.current.intensity = isLight ? 0.95 : 0.65;
+      ambientLightRef.current.intensity = isLight ? 1.0 : 0.8;
     }
     if (dirLightRef.current) {
       dirLightRef.current.color.setHex(0xffedd5);
@@ -181,17 +189,37 @@ export function DiceCanvas({
     fillLight.position.set(6, 6, -5);
     scene.add(fillLight);
 
-    // 5. Visual Dice Tray
-    const trayWidth = 15.0;
-    const trayDepth = 11.0;
-    const rimHeight = 1.4;
-    const rimThickness = 0.6;
+    // Warm Overhead Lantern for tabletop atmosphere
+    const centerLamp = new THREE.PointLight(0xffedd5, isLightInit ? 1.1 : 0.9, 30);
+    centerLamp.position.set(0, 8, 0);
+    scene.add(centerLamp);
 
+    // 5. Visual Dice Tray with Realistic Table & Tabletop Box
+    const trayWidth = 14.5;
+    const trayDepth = 10.5;
+    const rimHeight = 1.8;
+    const rimThickness = 0.7;
+
+    // A. Outer Tabletop Surface Plane
+    const tableGeo = new THREE.PlaneGeometry(70, 70);
+    const tableMat = new THREE.MeshStandardMaterial({
+      color: isLightInit ? 0xdfd6c3 : 0x0e0d13,
+      roughness: 0.9,
+      metalness: 0.05,
+    });
+    tableMatRef.current = tableMat;
+    const tableMesh = new THREE.Mesh(tableGeo, tableMat);
+    tableMesh.position.y = -0.15;
+    tableMesh.rotation.x = -Math.PI / 2;
+    tableMesh.receiveShadow = true;
+    scene.add(tableMesh);
+
+    // B. Inner Tray Felt/Velvet Floor
     const floorGeo = new THREE.PlaneGeometry(trayWidth, trayDepth);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: isLightInit ? 0x1a402d : 0x14121a,
-      roughness: 0.85,
-      metalness: 0.05,
+      color: isLightInit ? 0x16462d : 0x221832,
+      roughness: 0.8,
+      metalness: 0.08,
     });
     floorMatRef.current = floorMat;
     const floorMesh = new THREE.Mesh(floorGeo, floorMat);
@@ -199,26 +227,42 @@ export function DiceCanvas({
     floorMesh.receiveShadow = true;
     scene.add(floorMesh);
 
+    // C. Inner Decorative Gold Border on Felt
+    const innerBorderGeo = new THREE.PlaneGeometry(trayWidth - 1.2, trayDepth - 1.2);
+    const innerBorderEdges = new THREE.EdgesGeometry(innerBorderGeo);
+    const innerBorderMat = new THREE.LineBasicMaterial({
+      color: isLightInit ? 0xd4af37 : 0xe5a93c,
+      transparent: true,
+      opacity: 0.75,
+    });
+    innerBorderMatRef.current = innerBorderMat;
+    const innerBorder = new THREE.LineSegments(innerBorderEdges, innerBorderMat);
+    innerBorder.rotation.x = -Math.PI / 2;
+    innerBorder.position.y = 0.01;
+    scene.add(innerBorder);
+
+    // D. Rich Hardwood Rims
     const frameMat = new THREE.MeshStandardMaterial({
-      color: isLightInit ? 0x4a2a16 : 0x23140a,
-      roughness: 0.4,
+      color: isLightInit ? 0x6a3818 : 0x442716,
+      roughness: 0.35,
       metalness: 0.15,
     });
     frameMatRef.current = frameMat;
     const goldTrimMat = new THREE.MeshStandardMaterial({
-      color: isLightInit ? 0xd4af37 : 0xd97706,
-      roughness: 0.3,
-      metalness: 0.7,
+      color: isLightInit ? 0xd4af37 : 0xe5a93c,
+      roughness: 0.25,
+      metalness: 0.8,
     });
     goldTrimMatRef.current = goldTrimMat;
 
     const frameGroup = new THREE.Group();
 
+    // 4 Outer Wooden Rims
     const topRim = new THREE.Mesh(
       new THREE.BoxGeometry(trayWidth + rimThickness * 2, rimHeight, rimThickness),
       frameMat
     );
-    topRim.position.set(0, rimHeight / 2 - 0.2, -trayDepth / 2 - rimThickness / 2);
+    topRim.position.set(0, rimHeight / 2 - 0.1, -trayDepth / 2 - rimThickness / 2);
     topRim.castShadow = true;
     topRim.receiveShadow = true;
     frameGroup.add(topRim);
@@ -227,7 +271,7 @@ export function DiceCanvas({
       new THREE.BoxGeometry(trayWidth + rimThickness * 2, rimHeight, rimThickness),
       frameMat
     );
-    bottomRim.position.set(0, rimHeight / 2 - 0.2, trayDepth / 2 + rimThickness / 2);
+    bottomRim.position.set(0, rimHeight / 2 - 0.1, trayDepth / 2 + rimThickness / 2);
     bottomRim.castShadow = true;
     bottomRim.receiveShadow = true;
     frameGroup.add(bottomRim);
@@ -236,7 +280,7 @@ export function DiceCanvas({
       new THREE.BoxGeometry(rimThickness, rimHeight, trayDepth),
       frameMat
     );
-    leftRim.position.set(-trayWidth / 2 - rimThickness / 2, rimHeight / 2 - 0.2, 0);
+    leftRim.position.set(-trayWidth / 2 - rimThickness / 2, rimHeight / 2 - 0.1, 0);
     leftRim.castShadow = true;
     leftRim.receiveShadow = true;
     frameGroup.add(leftRim);
@@ -245,35 +289,66 @@ export function DiceCanvas({
       new THREE.BoxGeometry(rimThickness, rimHeight, trayDepth),
       frameMat
     );
-    rightRim.position.set(trayWidth / 2 + rimThickness / 2, rimHeight / 2 - 0.2, 0);
+    rightRim.position.set(trayWidth / 2 + rimThickness / 2, rimHeight / 2 - 0.1, 0);
     rightRim.castShadow = true;
     rightRim.receiveShadow = true;
     frameGroup.add(rightRim);
 
-    const lipThickness = 0.08;
-    const lipHeight = 0.15;
+    // Inner Gold Trim Lips on walls
+    const lipThickness = 0.1;
+    const lipHeight = 0.2;
     const topLip = new THREE.Mesh(
       new THREE.BoxGeometry(trayWidth, lipHeight, lipThickness),
       goldTrimMat
     );
-    topLip.position.set(0, lipHeight / 2, -trayDepth / 2 + lipThickness / 2);
+    topLip.position.set(0, rimHeight - lipHeight / 2 - 0.1, -trayDepth / 2 + lipThickness / 2);
     frameGroup.add(topLip);
 
     const botLip = new THREE.Mesh(
       new THREE.BoxGeometry(trayWidth, lipHeight, lipThickness),
       goldTrimMat
     );
-    botLip.position.set(0, lipHeight / 2, trayDepth / 2 - lipThickness / 2);
+    botLip.position.set(0, rimHeight - lipHeight / 2 - 0.1, trayDepth / 2 - lipThickness / 2);
     frameGroup.add(botLip);
+
+    const leftLip = new THREE.Mesh(
+      new THREE.BoxGeometry(lipThickness, lipHeight, trayDepth),
+      goldTrimMat
+    );
+    leftLip.position.set(-trayWidth / 2 + lipThickness / 2, rimHeight - lipHeight / 2 - 0.1, 0);
+    frameGroup.add(leftLip);
+
+    const rightLip = new THREE.Mesh(
+      new THREE.BoxGeometry(lipThickness, lipHeight, trayDepth),
+      goldTrimMat
+    );
+    rightLip.position.set(trayWidth / 2 - lipThickness / 2, rimHeight - lipHeight / 2 - 0.1, 0);
+    frameGroup.add(rightLip);
+
+    // E. 4 Brass/Gold Corner Brackets
+    const cornerGeo = new THREE.BoxGeometry(rimThickness * 1.3, rimHeight + 0.15, rimThickness * 1.3);
+    const cornerPositions = [
+      [-trayWidth / 2 - rimThickness / 2, -trayDepth / 2 - rimThickness / 2],
+      [trayWidth / 2 + rimThickness / 2, -trayDepth / 2 - rimThickness / 2],
+      [-trayWidth / 2 - rimThickness / 2, trayDepth / 2 + rimThickness / 2],
+      [trayWidth / 2 + rimThickness / 2, trayDepth / 2 + rimThickness / 2],
+    ];
+    cornerPositions.forEach(([cx, cz]) => {
+      const cornerMesh = new THREE.Mesh(cornerGeo, goldTrimMat);
+      cornerMesh.position.set(cx, rimHeight / 2 - 0.05, cz);
+      cornerMesh.castShadow = true;
+      cornerMesh.receiveShadow = true;
+      frameGroup.add(cornerMesh);
+    });
 
     scene.add(frameGroup);
 
-    // 6. Physics World
+    // 6. Physics World with Tall Containment Walls
     const { world } = createDicePhysicsWorld({
       trayWidth,
       trayDepth,
-      wallHeight: 5,
-      wallThickness: 1,
+      wallHeight: 20,
+      wallThickness: 2.0,
     });
     worldRef.current = world;
 
@@ -302,8 +377,33 @@ export function DiceCanvas({
       // Advance physics simulation
       world.step(1 / 60, delta, 3);
 
-      // Update active dice meshes and handle settling
+      // Enforce physical boundary safety clamp so dice never escape the tray
+      const limitX = trayWidth / 2 - 0.8;
+      const limitZ = trayDepth / 2 - 0.8;
       const activeDice = activeDiceRef.current;
+
+      for (const item of activeDice) {
+        if (item.body.position.x > limitX) {
+          item.body.position.x = limitX;
+          item.body.velocity.x = -Math.abs(item.body.velocity.x) * 0.4;
+        } else if (item.body.position.x < -limitX) {
+          item.body.position.x = -limitX;
+          item.body.velocity.x = Math.abs(item.body.velocity.x) * 0.4;
+        }
+        if (item.body.position.z > limitZ) {
+          item.body.position.z = limitZ;
+          item.body.velocity.z = -Math.abs(item.body.velocity.z) * 0.4;
+        } else if (item.body.position.z < -limitZ) {
+          item.body.position.z = -limitZ;
+          item.body.velocity.z = Math.abs(item.body.velocity.z) * 0.4;
+        }
+        if (item.body.position.y > 6.0) {
+          item.body.position.y = 6.0;
+          item.body.velocity.y = -Math.abs(item.body.velocity.y) * 0.5;
+        }
+      }
+
+      // Update active dice meshes and handle settling
       if (activeDice.length > 0) {
         let allSettled = true;
         const totalRollElapsed = time - rollStartTimeRef.current;

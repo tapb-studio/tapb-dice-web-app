@@ -13,6 +13,8 @@ import {
   AlertCircle,
   Loader2,
   Share2,
+  ScrollText,
+  Users,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { DiceCanvas, DiceCanvasRollTrigger } from "@/components/DiceCanvas";
@@ -67,6 +69,7 @@ export default function RoomPage() {
   const [isRolling, setIsRolling] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"tray" | "history" | "members">("tray");
 
   const socketRef = useRef<Socket | null>(null);
   const rollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -315,6 +318,7 @@ export default function RoomPage() {
       });
 
       setIsRolling(true);
+      setMobileTab("tray");
     });
 
     return () => {
@@ -506,10 +510,74 @@ export default function RoomPage() {
           </div>
         </div>
 
+        {/* Mobile Segmented Tab Bar (< lg) */}
+        <div className="flex lg:hidden items-center justify-between p-1 bg-stone-200/80 dark:bg-neutral-900/90 rounded-xl border border-stone-300/80 dark:border-neutral-800 shrink-0 gap-1 backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={() => setMobileTab("tray")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              mobileTab === "tray"
+                ? "bg-amber-600 text-white shadow-sm font-bold"
+                : "text-stone-600 dark:text-neutral-400 hover:text-stone-900 dark:hover:text-white"
+            }`}
+          >
+            <Dices className="h-3.5 w-3.5" />
+            <span>{t("diceTrayTab")}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("history")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              mobileTab === "history"
+                ? "bg-amber-600 text-white shadow-sm font-bold"
+                : "text-stone-600 dark:text-neutral-400 hover:text-stone-900 dark:hover:text-white"
+            }`}
+          >
+            <ScrollText className="h-3.5 w-3.5" />
+            <span>{t("rollHistoryTab")}</span>
+            {rollHistory.length > 0 && (
+              <span
+                className={`ml-0.5 text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  mobileTab === "history"
+                    ? "bg-amber-800/80 text-amber-100"
+                    : "bg-stone-300 dark:bg-neutral-800 text-stone-700 dark:text-amber-400"
+                }`}
+              >
+                {rollHistory.length}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("members")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              mobileTab === "members"
+                ? "bg-amber-600 text-white shadow-sm font-bold"
+                : "text-stone-600 dark:text-neutral-400 hover:text-stone-900 dark:hover:text-white"
+            }`}
+          >
+            <Users className="h-3.5 w-3.5" />
+            <span>{t("membersTab")}</span>
+            <span
+              className={`ml-0.5 text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                mobileTab === "members"
+                  ? "bg-amber-800/80 text-amber-100"
+                  : "bg-stone-300 dark:bg-neutral-800 text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
+              {members.length}
+            </span>
+          </button>
+        </div>
+
         {/* Center Stage & Sidebar Grid */}
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-2.5 overflow-hidden">
           {/* Stage Column (3D Canvas + Controls) */}
-          <div className="lg:col-span-8 flex flex-col min-h-0 h-full gap-2 overflow-hidden">
+          <div
+            className={`lg:col-span-8 flex-col min-h-0 h-full gap-2 overflow-hidden ${
+              mobileTab === "tray" ? "flex" : "hidden lg:flex"
+            }`}
+          >
             {/* 3D Dice Tray Stage */}
             <div className="flex-1 min-h-0 w-full relative">
               <DiceCanvas
@@ -528,18 +596,30 @@ export default function RoomPage() {
           </div>
 
           {/* Right Column: Members & Chronicle */}
-          <div className="lg:col-span-4 flex flex-col min-h-0 h-full gap-2 overflow-hidden">
+          <div
+            className={`lg:col-span-4 flex-col min-h-0 h-full gap-2 overflow-hidden ${
+              mobileTab !== "tray" ? "flex" : "hidden lg:flex"
+            }`}
+          >
             {/* Active Members */}
             <RoomMembers
               members={members}
               currentUserId={currentUser?.id}
-              className="shrink-0"
+              className={`${
+                mobileTab === "members"
+                  ? "flex-1 min-h-0 overflow-y-auto"
+                  : "hidden lg:block shrink-0"
+              }`}
             />
 
             {/* Real-Time Roll History */}
             <RollHistory
               rolls={rollHistory}
-              className="flex-1 min-h-0"
+              className={`${
+                mobileTab === "history"
+                  ? "flex-1 min-h-0"
+                  : "hidden lg:block lg:flex-1 lg:min-h-0"
+              }`}
             />
           </div>
         </div>

@@ -409,9 +409,9 @@ export function createDicePhysicsWorld(
 ): DicePhysicsWorldResult {
   const width = options.trayWidth ?? 14;
   const depth = options.trayDepth ?? 14;
-  const wallHeight = options.wallHeight ?? 6;
+  const wallHeight = options.wallHeight ?? 18;
   const gravityY = options.gravity ?? -9.82;
-  const wallThickness = options.wallThickness ?? 1.0;
+  const wallThickness = options.wallThickness ?? 2.0;
 
   const world = new CANNON.World();
   world.gravity.set(0, gravityY, 0);
@@ -482,12 +482,12 @@ export function createDicePhysicsWorld(
   // Contact materials for realistic tabletop bounces
   const diceMaterial = new CANNON.Material("dice");
   const floorContact = new CANNON.ContactMaterial(diceMaterial, floorMaterial, {
-    restitution: 0.35,
-    friction: 0.3,
+    restitution: 0.22,
+    friction: 0.4,
   });
   const wallContact = new CANNON.ContactMaterial(diceMaterial, wallMaterial, {
-    restitution: 0.5,
-    friction: 0.2,
+    restitution: 0.25,
+    friction: 0.35,
   });
   world.addContactMaterial(floorContact);
   world.addContactMaterial(wallContact);
@@ -625,15 +625,19 @@ export function applyDiceRollImpulse(
     startZ?: number;
   } = {}
 ): void {
-  const impulse = options.impulseStrength ?? options.force ?? 8;
-  const angular = options.angularStrength ?? options.torque ?? 25;
+  const impulse = options.impulseStrength ?? options.force ?? 7;
+  const angular = options.angularStrength ?? options.torque ?? 22;
 
-  const startX = options.startX ?? (Math.random() - 0.5) * 4;
-  const startZ = options.startZ ?? 3 + Math.random() * 2;
+  const startX = options.startX ?? (Math.random() - 0.5) * 3;
+  const startZ = options.startZ ?? 2 + Math.random() * 2;
 
-  const vx = -startX * 1.5 + (Math.random() - 0.5) * 4;
-  const vy = -(Math.random() * 3 + 2);
-  const vz = -startZ * 1.8 - Math.random() * impulse;
+  // Aim inwards towards tray center (0, 0)
+  const toCenterX = -startX * 1.3;
+  const toCenterZ = -startZ * 1.3;
+
+  const vx = toCenterX + (Math.random() - 0.5) * 2;
+  const vy = -(Math.random() * 2.5 + 3.5); // deliberate downward motion toward floor
+  const vz = toCenterZ - Math.random() * (impulse * 0.6);
   body.velocity.set(vx, vy, vz);
 
   const wx = (Math.random() - 0.5) * angular;
