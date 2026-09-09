@@ -64,6 +64,7 @@ export default function RoomPage() {
   const [rollTrigger, setRollTrigger] = useState<DiceCanvasRollTrigger | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -137,11 +138,17 @@ export default function RoomPage() {
         setRoom(loadedRoom);
         setRollHistory(normalizedHistory);
 
-        // If room is password-protected, verify if user has access or prompt
-        if (loadedRoom.hasPassword) {
-          setShowPasswordModal(true);
-        } else {
+        // Check access: public room, owner of room, or authorized in this session
+        const isOwner = authData.user && loadedRoom.created_by === authData.user.id;
+        const isSessionAuth =
+          typeof window !== "undefined" &&
+          window.sessionStorage.getItem("room_auth_" + loadedRoom.code) === "1";
+
+        if (!loadedRoom.hasPassword || isOwner || isSessionAuth) {
           setIsVerified(true);
+          setShowPasswordModal(false);
+        } else {
+          setShowPasswordModal(true);
         }
 
         setIsLoading(false);
@@ -185,6 +192,9 @@ export default function RoomPage() {
         return;
       }
 
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("room_auth_" + room.code, "1");
+      }
       setShowPasswordModal(false);
       setIsVerified(true);
     } catch {
@@ -209,15 +219,22 @@ export default function RoomPage() {
     });
     socketRef.current = socket;
 
-    // Join room
-    socket.emit("join_room", {
-      roomId: room.id,
-      user: {
-        id: currentUser.id,
-        name: currentUser.name,
-        username: currentUser.username,
-      },
-    });
+    // Join room function (used on initial connect and reconnection)
+    const emitJoin = () => {
+      socket.emit("join_room", {
+        roomId: room.id,
+        user: {
+          id: currentUser.id,
+          name: currentUser.name,
+          username: currentUser.username,
+        },
+      });
+    };
+
+    socket.on("connect", emitJoin);
+    if (socket.connected) {
+      emitJoin();
+    }
 
     // Listeners
     socket.on("room_users_updated", (data: { users?: RoomMemberItem[] }) => {
@@ -299,6 +316,13 @@ export default function RoomPage() {
     navigator.clipboard.writeText(room.code);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handleShareLink = () => {
+    if (typeof window === "undefined") return;
+    navigator.clipboard.writeText(window.location.href);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
   };
 
   const handleLeaveRoom = () => {
@@ -386,6 +410,25 @@ export default function RoomPage() {
                 <>
                   <Copy className="h-3.5 w-3.5 text-amber-400" />
                   <span className="hidden sm:inline">Copy Code</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleShareLink}
+              title="Share Room Link"
+              className="flex items-center gap-1.5 rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-xs font-semibold text-neutral-300 hover:border-amber-500/50 hover:text-white transition-all shadow-sm"
+            >
+              {copiedLink ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">Link Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-3.5 w-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">Share Link</span>
                 </>
               )}
             </button>

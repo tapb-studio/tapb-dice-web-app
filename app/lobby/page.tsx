@@ -141,6 +141,9 @@ export default function LobbyPage() {
         return;
       }
 
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("room_auth_" + data.room.code, "1");
+      }
       router.push(`/room/${data.room.code}`);
     } catch {
       setCreateError("Network error. Could not create room.");
@@ -177,6 +180,9 @@ export default function LobbyPage() {
         return;
       }
 
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("room_auth_" + formattedCode, "1");
+      }
       router.push(`/room/${formattedCode}`);
     } catch {
       setJoinError("Network error. Could not verify room.");
@@ -186,11 +192,15 @@ export default function LobbyPage() {
 
   // Handle Direct Join from List
   const handleDirectJoin = (room: RoomItem) => {
-    if (room.hasPassword) {
+    const isOwner = currentUser && room.created_by === currentUser.id;
+    if (room.hasPassword && !isOwner) {
       setSelectedRoomForPassword(room);
       setModalPassword("");
       setModalError(null);
     } else {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("room_auth_" + room.code, "1");
+      }
       router.push(`/room/${room.code}`);
     }
   };
@@ -220,6 +230,9 @@ export default function LobbyPage() {
         return;
       }
 
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("room_auth_" + selectedRoomForPassword.code, "1");
+      }
       router.push(`/room/${selectedRoomForPassword.code}`);
     } catch {
       setModalError("Network error. Could not verify password.");
