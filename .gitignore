@@ -36,5 +36,8 @@ next-env.d.ts
 .superpowers/
 
 # sqlite database
-database/*.db
-database/*.db-journal
+/database/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
