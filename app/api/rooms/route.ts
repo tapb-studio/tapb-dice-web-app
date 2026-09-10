@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserFromToken } from "@/lib/auth";
-import { createRoom, listRooms, extractToken } from "@/lib/rooms";
+import { getUserFromToken, getUserFromTokenAsync } from "@/lib/auth";
+import { createRoom, listRooms, listRoomsAsync, extractToken } from "@/lib/rooms";
 
 export async function POST(req: NextRequest | Request) {
   const token = extractToken(req);
@@ -8,7 +8,7 @@ export async function POST(req: NextRequest | Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = getUserFromToken(token);
+  const user = (await getUserFromTokenAsync(token)) || getUserFromToken(token);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -53,15 +53,15 @@ export async function GET(req: NextRequest | Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = getUserFromToken(token);
+    const user = (await getUserFromTokenAsync(token)) || getUserFromToken(token);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rooms = listRooms({ userId: user.id });
+    const rooms = (await listRoomsAsync({ userId: user.id })) || listRooms({ userId: user.id });
     return NextResponse.json({ rooms }, { status: 200 });
   }
 
-  const rooms = listRooms({ limit: 50 });
+  const rooms = (await listRoomsAsync({ limit: 50 })) || listRooms({ limit: 50 });
   return NextResponse.json({ rooms }, { status: 200 });
 }

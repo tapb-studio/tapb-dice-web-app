@@ -64,9 +64,9 @@ TAPB Dice Web App is a modern, dark-fantasy tabletop web application built for D
 | **Framework & Frontend** | [Next.js 14](https://nextjs.org/) (App Router), [React 18](https://react.dev/), [Tailwind CSS](https://tailwindcss.com/), [Lucide React](https://lucide.dev/) |
 | **3D Engine & Physics** | [Three.js](https://threejs.org/) (WebGL rendering), [Cannon-es](https://github.com/pmndrs/cannon-es) (Rigid-body physics) |
 | **Audio Engine** | Procedural Web Audio API synthesis (zero external audio dependencies) |
-| **Real-Time Communication**| [Socket.io](https://socket.io/) (bidirectional WebSocket broadcasting) |
+| **Real-Time Communication**| [Socket.io](https://socket.io/) (via Standalone `tapb-realtime-service` with Redis Pub/Sub cluster) |
 | **Server Architecture** | Node.js Custom HTTP server (`server.js`) integrating Next.js + Socket.io |
-| **Database & Storage** | [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) with Write-Ahead Logging (WAL) |
+| **Database & Storage** | [PostgreSQL 16](https://www.postgresql.org/) (`tapb-central-db` at `10.10.0.34`) with [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) offline fallback |
 | **Authentication** | `bcryptjs` for password hashing, `jsonwebtoken` for secure JWT cookies |
 | **Testing & Quality** | [Vitest](https://vitest.dev/) (Unit & Integration tests), TypeScript 5.7 (strict typing) |
 
@@ -133,16 +133,25 @@ Configure environment variables in a `.env` file or export them directly in your
 | Variable | Type | Default | Description |
 |---|---|---|---|
 | `PORT` | Number | `3000` | HTTP port on which the server will listen. |
-| `JWT_SECRET` | String | *tapb-secret-key-change-in-prod* | Secret key used to sign and verify JWT authentication tokens. **Required in production.** |
-| `DATABASE_PATH` | String | `database/app.db` | Path to the SQLite database file (supports relative or absolute paths, or `:memory:`). |
+| `DATABASE_URL` | String | `postgresql://tapb_dice:...@10.10.0.34:5432/tapb-dice` | Central PostgreSQL database connection string. |
+| `NEXT_PUBLIC_SOCKET_URL` | String | `http://10.10.0.22:3001/dice` | Realtime Socket.IO endpoint (Standalone service). |
+| `JWT_SECRET` | String | *tapb-secret-key-change-in-prod* | Secret key shared with `tapb-realtime-service` to sign and verify JWT authentication tokens. |
+| `DATABASE_PATH` | String | `database/app.db` | Fallback path to the SQLite database file for local/offline testing. |
 | `NODE_ENV` | String | `development` | Application environment (`development` or `production`). |
 
 Example `.env` configuration:
 ```env
+# Central Database (PostgreSQL 16 at 10.10.0.34)
+DATABASE_URL="postgresql://tapb_dice:tapbDiceSecure2026!@10.10.0.34:5432/tapb-dice"
+
+# Standalone Realtime Service (Socket.IO at 10.10.0.22:3001)
+NEXT_PUBLIC_SOCKET_URL="http://10.10.0.22:3001/dice"
+
+# Shared JWT Secret
+JWT_SECRET="28e06b2741fa3bae4b99aae1da784394bfb2e3dc6b5bc41d23c50bad517bb73d755aecfa683c3de06be1ac9800be4106"
+
 PORT=3000
-JWT_SECRET=super-secret-dnd-session-token-key
-DATABASE_PATH=database/app.db
-NODE_ENV=development
+NODE_ENV=production
 ```
 
 ---

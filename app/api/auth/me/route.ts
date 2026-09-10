@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserFromToken, AUTH_COOKIE_NAME } from "@/lib/auth";
+import { getUserFromToken, getUserFromTokenAsync, AUTH_COOKIE_NAME } from "@/lib/auth";
 
 function extractToken(req: NextRequest | Request): string | undefined {
   if ("cookies" in req && typeof (req as NextRequest).cookies?.get === "function") {
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest | Request) {
     );
   }
 
-  const user = getUserFromToken(token);
+  const user = (await getUserFromTokenAsync(token)) || getUserFromToken(token);
   if (!user) {
     return NextResponse.json(
       { error: "Unauthorized", user: null },
@@ -37,5 +37,5 @@ export async function GET(req: NextRequest | Request) {
     );
   }
 
-  return NextResponse.json({ user }, { status: 200 });
+  return NextResponse.json({ user, token }, { status: 200 });
 }

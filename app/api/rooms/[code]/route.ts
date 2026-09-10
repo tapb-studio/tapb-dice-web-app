@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRoomByCode, extractToken, verifyRoomAccess, deleteRoom } from "@/lib/rooms";
-import { getUserFromToken } from "@/lib/auth";
+import {
+  getRoomByCode,
+  getRoomByCodeAsync,
+  extractToken,
+  verifyRoomAccess,
+  deleteRoom,
+  deleteRoomAsync,
+} from "@/lib/rooms";
+import { getUserFromToken, getUserFromTokenAsync } from "@/lib/auth";
 
 export async function GET(
   req: NextRequest | Request,
@@ -17,7 +24,7 @@ export async function GET(
   }
 
   const trimmedCode = code.trim();
-  const result = getRoomByCode(trimmedCode);
+  const result = (await getRoomByCodeAsync(trimmedCode)) || getRoomByCode(trimmedCode);
   if (!result) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
@@ -27,7 +34,9 @@ export async function GET(
   // If the room is password-protected, check if user is creator or has valid room access cookie/header
   if (room.hasPassword) {
     const token = extractToken(req);
-    const currentUser = token ? getUserFromToken(token) : null;
+    const currentUser = token
+      ? (await getUserFromTokenAsync(token)) || getUserFromToken(token)
+      : null;
     const isCreator = Boolean(currentUser && currentUser.id === room.created_by);
 
     let hasAccess = isCreator;
@@ -124,7 +133,7 @@ export async function DELETE(
     );
   }
 
-  const user = getUserFromToken(token);
+  const user = (await getUserFromTokenAsync(token)) || getUserFromToken(token);
   if (!user) {
     return NextResponse.json(
       { error: "Invalid session" },
@@ -132,7 +141,7 @@ export async function DELETE(
     );
   }
 
-  const roomRes = getRoomByCode(code);
+  const roomRes = (await getRoomByCodeAsync(code)) || getRoomByCode(code);
   if (!roomRes) {
     return NextResponse.json(
       { error: "Room not found" },
@@ -148,7 +157,7 @@ export async function DELETE(
   }
 
   try {
-    const success = deleteRoom(code, user.id);
+    const success = (await deleteRoomAsync(code, user.id)) || deleteRoom(code, user.id);
     return NextResponse.json({ success }, { status: 200 });
   } catch (err: any) {
     return NextResponse.json(

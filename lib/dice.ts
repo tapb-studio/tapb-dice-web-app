@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import Database from "better-sqlite3";
-import { getDb } from "./db";
+import { getDb, query } from "./db";
 
 export type DiceType = "d4" | "d6" | "d8" | "d10" | "d12" | "d20" | "d100";
 
@@ -245,3 +245,101 @@ export function saveRollToDb(
     createdAt,
   };
 }
+
+/**
+ * Saves a dice roll result asynchronously to PostgreSQL (or SQLite via query helper).
+ */
+export async function saveRollToDbAsync(
+  roomId: string,
+  user: { id: string; name: string; username?: string },
+  roll:
+    | RollResult
+    | {
+        id?: string;
+        diceType: string;
+        count?: number;
+        diceCount?: number;
+        modifier?: number;
+        notation?: string;
+        individualResults?: number[];
+        results?: number[];
+        total: number;
+        isCritHit?: boolean;
+        isCritFail?: boolean;
+        createdAt?: string;
+        timestamp?: string;
+      }
+): Promise<SavedDiceRoll> {
+  if (!roomId || typeof roomId !== "string" || roomId.trim() === "") {
+    throw new Error("Room ID is required");
+  }
+  if (!user || !user.id || !user.name) {
+    throw new Error("User with id and name is required");
+  }
+
+  const rollId = (roll as any).id || crypto.randomUUID();
+  const createdAt =
+    (roll as any).createdAt || (roll as any).timestamp || new Date().toISOString();
+  const diceType = roll.diceType;
+  const count = (roll as any).count ?? (roll as any).diceCount ?? 1;
+  const modifier = roll.modifier ?? 0;
+  const notation = roll.notation || `${count}${diceType}`;
+  const individualResults =
+    (roll as any).individualResults || (roll as any).results || [];
+  const total = Number(roll.total);
+  const isCritHit = Boolean(roll.isCritHit);
+  const isCritFail = Boolean(roll.isCritFail);
+
+  await query(
+    `INSERT INTO dice_rolls (
+      id,
+      room_id,
+      user_id,
+      user_name,
+      notation,
+      dice_type,
+      dice_count,
+      modifier,
+      individual_results,
+      total,
+      is_crit_hit,
+      is_crit_fail,
+      created_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+    [
+      rollId,
+      roomId,
+      user.id,
+      user.name,
+      notation,
+      diceType,
+      count,
+      modifier,
+      JSON.stringify(individualResults),
+      total,
+      isCritHit ? 1 : 0,
+      isCritFail ? 1 : 0,
+      createdAt,
+    ]
+  );
+
+  return {
+    id: rollId,
+    roomId,
+    user: {
+      id: user.id,
+      name: user.name,
+      ...(user.username ? { username: user.username } : {}),
+    },
+    diceType,
+    count,
+    modifier,
+    notation,
+    individualResults,
+    total,
+    isCritHit,
+    isCritFail,
+    createdAt,
+  };
+}
+

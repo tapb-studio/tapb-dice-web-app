@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import Database from "better-sqlite3";
-import { getDb, User as DbUser } from "./db";
+import { query, getDb, User as DbUser } from "./db";
 
 export type User = Omit<DbUser, "password_hash">;
 export type SafeUser = User;
@@ -35,7 +35,7 @@ export function getJwtSecret(): string {
     if (process.env.NODE_ENV === "production") {
       throw new Error("JWT_SECRET must be set in production environment");
     }
-    return "tapb-secret-key-change-in-prod";
+    return "28e06b2741fa3bae4b99aae1da784394bfb2e3dc6b5bc41d23c50bad517bb73d755aecfa683c3de06be1ac9800be4106";
   }
   return secret;
 }
@@ -71,35 +71,52 @@ export async function registerUser(
     throw new Error("Password is required");
   }
 
-  const database = db || getDb();
   const trimmedName = name.trim();
   const trimmedUsername = username.trim();
 
-  // Check if username already exists (case-insensitive check)
-  const existing = database
-    .prepare("SELECT id FROM users WHERE LOWER(username) = LOWER(?)")
-    .get(trimmedUsername);
+  // If explicit SQLite db is provided (unit tests)
+  if (db) {
+    const existing = db
+      .prepare("SELECT id FROM users WHERE LOWER(username) = LOWER(?)")
+      .get(trimmedUsername);
 
-  if (existing) {
+    if (existing) {
+      throw new Error("Username already exists");
+    }
+
+    const id = crypto.randomUUID();
+    const password_hash = await hashPassword(password);
+
+    db.prepare(
+      "INSERT INTO users (id, name, username, password_hash) VALUES (?, ?, ?, ?)"
+    ).run(id, trimmedName, trimmedUsername, password_hash);
+
+    const row = db
+      .prepare("SELECT id, name, username, created_at FROM users WHERE id = ?")
+      .get(id) as User;
+
+    return row;
+  }
+
+  // Unified query (PostgreSQL in production/runtime)
+  const existingRes = await query(
+    "SELECT id FROM users WHERE LOWER(username) = LOWER($1)",
+    [trimmedUsername]
+  );
+
+  if (existingRes.rows.length > 0) {
     throw new Error("Username already exists");
   }
 
   const id = crypto.randomUUID();
   const password_hash = await hashPassword(password);
 
-  database
-    .prepare(
-      "INSERT INTO users (id, name, username, password_hash) VALUES (?, ?, ?, ?)"
-    )
-    .run(id, trimmedName, trimmedUsername, password_hash);
+  const insertRes = await query<User>(
+    "INSERT INTO users (id, name, username, password_hash) VALUES ($1, $2, $3, $4) RETURNING id, name, username, created_at",
+    [id, trimmedName, trimmedUsername, password_hash]
+  );
 
-  const row = database
-    .prepare(
-      "SELECT id, name, username, created_at FROM users WHERE id = ?"
-    )
-    .get(id) as User;
-
-  return row;
+  return insertRes.rows[0];
 }
 
 export async function loginUser(
@@ -114,12 +131,20 @@ export async function loginUser(
     throw new Error("Password is required");
   }
 
-  const database = db || getDb();
   const trimmedUsername = username.trim();
 
-  const row = database
-    .prepare("SELECT * FROM users WHERE LOWER(username) = LOWER(?)")
-    .get(trimmedUsername) as DbUser | undefined;
+  let row: DbUser | undefined;
+  if (db) {
+    row = db
+      .prepare("SELECT * FROM users WHERE LOWER(username) = LOWER(?)")
+      .get(trimmedUsername) as DbUser | undefined;
+  } else {
+    const res = await query<DbUser>(
+      "SELECT * FROM users WHERE LOWER(username) = LOWER($1)",
+      [trimmedUsername]
+    );
+    row = res.rows[0];
+  }
 
   if (!row) {
     throw new Error("Invalid username or password");
@@ -134,7 +159,7 @@ export async function loginUser(
     id: row.id,
     name: row.name,
     username: row.username,
-    created_at: row.created_at,
+    created_at: String(row.created_at),
   };
 
   const token = createToken({
@@ -150,17 +175,66 @@ export function getUserFromToken(
   token: string,
   db?: Database.Database
 ): User | null {
-  const payload = verifyToken<{ id: string; username?: string }>(token);
+  const payload = verifyToken<{ id: string; username?: string; name?: string }>(token);
   if (!payload || !payload.id) {
     return null;
   }
 
-  const database = db || getDb();
-  const row = database
-    .prepare(
-      "SELECT id, name, username, created_at FROM users WHERE id = ?"
-    )
-    .get(payload.id) as User | undefined;
+  if (db) {
+    const row = db
+      .prepare(
+        "SELECT id, name, username, created_at FROM users WHERE id = ?"
+      )
+      .get(payload.id) as User | undefined;
+    return row || null;
+  }
 
-  return row || null;
+  try {
+    const defaultSqlite = getDb();
+    if (defaultSqlite && defaultSqlite.open) {
+      const row = defaultSqlite
+        .prepare(
+          "SELECT id, name, username, created_at FROM users WHERE id = ?"
+        )
+        .get(payload.id) as User | undefined;
+      if (row) return row;
+    }
+  } catch {
+    // fallback
+  }
+
+  return {
+    id: payload.id,
+    name: payload.name || payload.username || "Adventurer",
+    username: payload.username || payload.name || "Adventurer",
+    created_at: "",
+  };
+}
+
+export async function getUserFromTokenAsync(
+  token: string
+): Promise<User | null> {
+  const payload = verifyToken<{ id: string; username?: string; name?: string }>(token);
+  if (!payload || !payload.id) {
+    return null;
+  }
+
+  try {
+    const res = await query<User>(
+      "SELECT id, name, username, created_at FROM users WHERE id = $1",
+      [payload.id]
+    );
+    if (res.rows.length > 0) {
+      return res.rows[0];
+    }
+  } catch {
+    // Fallback to payload
+  }
+
+  return {
+    id: payload.id,
+    name: payload.name || payload.username || "Adventurer",
+    username: payload.username || payload.name || "Adventurer",
+    created_at: "",
+  };
 }

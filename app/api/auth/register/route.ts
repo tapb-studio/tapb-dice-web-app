@@ -43,7 +43,7 @@ export async function POST(req: NextRequest | Request) {
       name: user.name,
     });
 
-    const response = NextResponse.json({ user }, { status: 201 });
+    const response = NextResponse.json({ user, token }, { status: 201 });
     response.cookies.set(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS);
     return response;
   } catch (error: any) {

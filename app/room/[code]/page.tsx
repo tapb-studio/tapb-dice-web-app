@@ -52,6 +52,7 @@ export default function RoomPage() {
   ).toUpperCase();
 
   const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const [room, setRoom] = useState<RoomInfo | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -96,6 +97,9 @@ export default function RoomPage() {
         }
         if (!isMounted) return;
         setCurrentUser(authData.user);
+        if (authData.token) {
+          setAuthToken(authData.token);
+        }
 
         // Fetch room info
         if (!codeParam) {
@@ -251,10 +255,12 @@ export default function RoomPage() {
   useEffect(() => {
     if (!isVerified || !room || !currentUser) return;
 
-    const origin =
-      typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+    const socketUrl =
+      process.env.NEXT_PUBLIC_SOCKET_URL ||
+      (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
 
-    const socket = io(origin, {
+    const socket = io(socketUrl, {
+      auth: { token: authToken },
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 10,
@@ -280,11 +286,14 @@ export default function RoomPage() {
     }
 
     // Listeners
-    socket.on("room_users_updated", (data: { users?: RoomMemberItem[] }) => {
+    const handleUsersUpdate = (data: { users?: RoomMemberItem[] }) => {
       if (Array.isArray(data?.users)) {
         setMembers(data.users);
       }
-    });
+    };
+
+    socket.on("room_users_updated", handleUsersUpdate);
+    socket.on("room_users", handleUsersUpdate);
 
     socket.on("dice_rolled", (data: any) => {
       if (rollTimeoutRef.current) {
@@ -292,18 +301,25 @@ export default function RoomPage() {
         rollTimeoutRef.current = null;
       }
 
+      const rawResults = data.individualResults || data.results || [];
+      const parsedResults = Array.isArray(rawResults)
+        ? rawResults
+        : typeof rawResults === "string"
+        ? JSON.parse(rawResults)
+        : [];
+
       const socketRoll: RollHistoryItem = {
         id: data.id,
         userName: data.user?.name || "Adventurer",
-        diceType: data.diceType,
-        count: data.count,
-        modifier: data.modifier,
-        notation: data.notation,
-        individualResults: data.individualResults || [],
+        diceType: data.diceType || "d20",
+        count: data.count || data.diceCount || 1,
+        modifier: data.modifier ?? 0,
+        notation: data.notation || `${data.count || 1}${data.diceType || "d20"}`,
+        individualResults: parsedResults,
         total: data.total,
         isCritHit: Boolean(data.isCritHit),
         isCritFail: Boolean(data.isCritFail),
-        createdAt: data.createdAt || new Date().toISOString(),
+        createdAt: data.createdAt || data.timestamp || new Date().toISOString(),
       };
 
       // Add to roll chronicle
@@ -312,9 +328,9 @@ export default function RoomPage() {
       // Trigger 3D Dice Canvas roll
       setRollTrigger({
         id: data.id,
-        diceType: data.diceType,
-        count: data.count,
-        individualResults: data.individualResults,
+        diceType: data.diceType || "d20",
+        count: data.count || data.diceCount || 1,
+        individualResults: parsedResults,
         modifier: data.modifier ?? 0,
         total: data.total,
         userName: data.user?.name || "Adventurer",
@@ -341,7 +357,7 @@ export default function RoomPage() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [isVerified, room, currentUser]);
+  }, [isVerified, room, currentUser, authToken]);
 
   // 4. Handle Roll Emit
   const handleRoll = useCallback(
@@ -365,8 +381,18 @@ export default function RoomPage() {
           count,
           modifier,
         },
-        (response: { success?: boolean; error?: string }) => {
-          if (response && !response.success) {
+        async (response: { success?: boolean; error?: string; roll?: any }) => {
+          if (response && response.success && response.roll) {
+            try {
+              await fetch(`/api/rooms/${room.code}/rolls`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(response.roll),
+              });
+            } catch {
+              // Non-fatal
+            }
+          } else if (response && !response.success) {
             if (rollTimeoutRef.current) {
               clearTimeout(rollTimeoutRef.current);
               rollTimeoutRef.current = null;

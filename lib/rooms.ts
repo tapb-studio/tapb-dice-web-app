@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import Database from "better-sqlite3";
-import { getDb, Room as DbRoom, DiceRoll } from "./db";
+import { query, getDb, Room as DbRoom, DiceRoll } from "./db";
 import { hashPassword, verifyPassword, AUTH_COOKIE_NAME } from "./auth";
 
 export interface Room {
@@ -96,25 +96,8 @@ export async function createRoom(
     throw new Error("User ID is required");
   }
 
-  const database = db || getDb();
   const trimmedName = name.trim();
   const trimmedUserId = userId.trim();
-
-  let code = "";
-  for (let attempts = 0; attempts < 20; attempts++) {
-    const candidate = generateRoomCode();
-    const existing = database
-      .prepare("SELECT id FROM rooms WHERE code = ?")
-      .get(candidate);
-    if (!existing) {
-      code = candidate;
-      break;
-    }
-  }
-
-  if (!code) {
-    code = `ROOM-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
-  }
 
   let password_hash: string | null = null;
   if (password && password.trim()) {
@@ -123,23 +106,68 @@ export async function createRoom(
 
   const id = crypto.randomUUID();
 
-  database
-    .prepare(
+  // If explicit SQLite db is provided (unit tests)
+  if (db) {
+    let code = "";
+    for (let attempts = 0; attempts < 20; attempts++) {
+      const candidate = generateRoomCode();
+      const existing = db
+        .prepare("SELECT id FROM rooms WHERE code = ?")
+        .get(candidate);
+      if (!existing) {
+        code = candidate;
+        break;
+      }
+    }
+    if (!code) {
+      code = `ROOM-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+    }
+
+    db.prepare(
       "INSERT INTO rooms (id, name, code, password_hash, created_by) VALUES (?, ?, ?, ?, ?)"
-    )
-    .run(id, trimmedName, code, password_hash, trimmedUserId);
+    ).run(id, trimmedName, code, password_hash, trimmedUserId);
 
-  const row = database
-    .prepare("SELECT * FROM rooms WHERE id = ?")
-    .get(id) as DbRoom;
+    const row = db
+      .prepare("SELECT * FROM rooms WHERE id = ?")
+      .get(id) as DbRoom;
 
+    return {
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      hasPassword: Boolean(row.password_hash),
+      created_by: row.created_by,
+      created_at: String(row.created_at),
+    };
+  }
+
+  // Unified PostgreSQL execution
+  let code = "";
+  for (let attempts = 0; attempts < 20; attempts++) {
+    const candidate = generateRoomCode();
+    const existing = await query("SELECT id FROM rooms WHERE code = $1", [candidate]);
+    if (existing.rows.length === 0) {
+      code = candidate;
+      break;
+    }
+  }
+  if (!code) {
+    code = `ROOM-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+  }
+
+  const insertRes = await query<DbRoom>(
+    "INSERT INTO rooms (id, name, code, password_hash, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+    [id, trimmedName, code, password_hash, trimmedUserId]
+  );
+
+  const row = insertRes.rows[0];
   return {
     id: row.id,
     name: row.name,
     code: row.code,
     hasPassword: Boolean(row.password_hash),
     created_by: row.created_by,
-    created_at: row.created_at,
+    created_at: String(row.created_at),
   };
 }
 
@@ -152,12 +180,20 @@ export async function verifyRoomAccess(
     return { valid: false, error: "Room code is required" };
   }
 
-  const database = db || getDb();
   const trimmedCode = code.trim().toUpperCase();
 
-  const row = database
-    .prepare("SELECT * FROM rooms WHERE UPPER(code) = ?")
-    .get(trimmedCode) as DbRoom | undefined;
+  let row: DbRoom | undefined;
+  if (db) {
+    row = db
+      .prepare("SELECT * FROM rooms WHERE UPPER(code) = ?")
+      .get(trimmedCode) as DbRoom | undefined;
+  } else {
+    const res = await query<DbRoom>(
+      "SELECT * FROM rooms WHERE UPPER(code) = UPPER($1)",
+      [trimmedCode]
+    );
+    row = res.rows[0];
+  }
 
   if (!row) {
     return { valid: false, error: "Room not found" };
@@ -169,7 +205,7 @@ export async function verifyRoomAccess(
     code: row.code,
     hasPassword: Boolean(row.password_hash),
     created_by: row.created_by,
-    created_at: row.created_at,
+    created_at: String(row.created_at),
   };
 
   if (!row.password_hash) {
@@ -209,7 +245,7 @@ export function getRoomByCode(
     code: row.code,
     hasPassword: Boolean(row.password_hash),
     created_by: row.created_by,
-    created_at: row.created_at,
+    created_at: String(row.created_at),
   };
 
   const rolls = database
@@ -219,6 +255,53 @@ export function getRoomByCode(
     .all(row.id) as DiceRoll[];
 
   const recentRolls = rolls.map((roll) => {
+    let parsedResults = roll.individual_results;
+    if (typeof roll.individual_results === "string") {
+      try {
+        parsedResults = JSON.parse(roll.individual_results);
+      } catch {
+        parsedResults = roll.individual_results;
+      }
+    }
+    return {
+      ...roll,
+      individual_results: parsedResults,
+    };
+  });
+
+  return { room, recentRolls };
+}
+
+export async function getRoomByCodeAsync(
+  code: string
+): Promise<RoomWithHistory | null> {
+  if (!code || !code.trim()) return null;
+
+  const trimmedCode = code.trim().toUpperCase();
+
+  const roomRes = await query<DbRoom>(
+    "SELECT * FROM rooms WHERE UPPER(code) = UPPER($1)",
+    [trimmedCode]
+  );
+
+  if (roomRes.rows.length === 0) return null;
+
+  const row = roomRes.rows[0];
+  const room: Room = {
+    id: row.id,
+    name: row.name,
+    code: row.code,
+    hasPassword: Boolean(row.password_hash),
+    created_by: row.created_by,
+    created_at: String(row.created_at),
+  };
+
+  const rollsRes = await query<DiceRoll>(
+    "SELECT * FROM dice_rolls WHERE room_id = $1 ORDER BY created_at DESC LIMIT 50",
+    [row.id]
+  );
+
+  const recentRolls = rollsRes.rows.map((roll) => {
     let parsedResults = roll.individual_results;
     if (typeof roll.individual_results === "string") {
       try {
@@ -262,7 +345,37 @@ export function listRooms(
     code: row.code,
     hasPassword: Boolean(row.password_hash),
     created_by: row.created_by,
-    created_at: row.created_at,
+    created_at: String(row.created_at),
+  }));
+}
+
+export async function listRoomsAsync(
+  options?: { userId?: string; limit?: number }
+): Promise<Room[]> {
+  const limit = options?.limit && options.limit > 0 ? options.limit : 50;
+
+  let rows: DbRoom[];
+  if (options?.userId) {
+    const res = await query<DbRoom>(
+      "SELECT * FROM rooms WHERE created_by = $1 ORDER BY created_at DESC LIMIT $2",
+      [options.userId, limit]
+    );
+    rows = res.rows;
+  } else {
+    const res = await query<DbRoom>(
+      "SELECT * FROM rooms ORDER BY created_at DESC LIMIT $1",
+      [limit]
+    );
+    rows = res.rows;
+  }
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    code: row.code,
+    hasPassword: Boolean(row.password_hash),
+    created_by: row.created_by,
+    created_at: String(row.created_at),
   }));
 }
 
@@ -291,3 +404,26 @@ export function deleteRoom(
   return res.changes > 0;
 }
 
+export async function deleteRoomAsync(
+  identifier: string,
+  userId?: string
+): Promise<boolean> {
+  if (!identifier || !identifier.trim()) return false;
+
+  const trimmed = identifier.trim();
+  const roomRes = await query<DbRoom>(
+    "SELECT * FROM rooms WHERE id = $1 OR UPPER(code) = UPPER($2)",
+    [trimmed, trimmed]
+  );
+
+  if (roomRes.rows.length === 0) return false;
+  const room = roomRes.rows[0];
+
+  if (userId && room.created_by !== userId) {
+    throw new Error("Unauthorized to delete this room");
+  }
+
+  await query("DELETE FROM dice_rolls WHERE room_id = $1", [room.id]);
+  const deleteRes = await query("DELETE FROM rooms WHERE id = $1", [room.id]);
+  return deleteRes.rowCount > 0;
+}
