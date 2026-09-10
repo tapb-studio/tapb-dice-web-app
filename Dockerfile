@@ -30,10 +30,17 @@ ENV NODE_ENV=production
 ARG NEXT_PUBLIC_SOCKET_URL="https://socket.tapb.ch/dice"
 ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
 
-RUN npm run build
+RUN npm run build && \
+    rm -rf .next/cache && \
+    npm prune --omit=dev && \
+    rm -rf node_modules/@next/swc* \
+           node_modules/lucide-react \
+           node_modules/three \
+           node_modules/better-sqlite3/Release/obj.target \
+           node_modules/better-sqlite3/deps \
+           node_modules/better-sqlite3/src
 
-# Remove development dependencies to keep final image slim
-RUN npm prune --omit=dev
+
 
 # -----------------------------------------------------------------------------
 # Stage 3: Production runner
