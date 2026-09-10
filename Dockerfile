@@ -27,7 +27,7 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-ARG NEXT_PUBLIC_SOCKET_URL="http://10.10.0.22:3001/dice"
+ARG NEXT_PUBLIC_SOCKET_URL="https://socket.tapb.ch/dice"
 ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
 
 RUN npm run build
@@ -44,7 +44,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV DATABASE_URL="postgresql://tapb_dice:tapbDiceSecure2026!@10.10.0.34:5432/tapb-dice"
-ENV NEXT_PUBLIC_SOCKET_URL="http://10.10.0.22:3001/dice"
+ENV NEXT_PUBLIC_SOCKET_URL="https://socket.tapb.ch/dice"
 ENV DATABASE_PATH=/app/database/app.db
 ENV NEXT_TELEMETRY_DISABLED=1
 

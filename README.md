@@ -134,7 +134,7 @@ Configure environment variables in a `.env` file or export them directly in your
 |---|---|---|---|
 | `PORT` | Number | `3000` | HTTP port on which the server will listen. |
 | `DATABASE_URL` | String | `postgresql://tapb_dice:...@10.10.0.34:5432/tapb-dice` | Central PostgreSQL database connection string. |
-| `NEXT_PUBLIC_SOCKET_URL` | String | `http://10.10.0.22:3001/dice` | Realtime Socket.IO endpoint (Standalone service). |
+| `NEXT_PUBLIC_SOCKET_URL` | String | `https://socket.tapb.ch/dice` | Realtime Socket.IO endpoint (Standalone service). |
 | `JWT_SECRET` | String | *tapb-secret-key-change-in-prod* | Secret key shared with `tapb-realtime-service` to sign and verify JWT authentication tokens. |
 | `DATABASE_PATH` | String | `database/app.db` | Fallback path to the SQLite database file for local/offline testing. |
 | `NODE_ENV` | String | `development` | Application environment (`development` or `production`). |
@@ -144,8 +144,8 @@ Example `.env` configuration:
 # Central Database (PostgreSQL 16 at 10.10.0.34)
 DATABASE_URL="postgresql://tapb_dice:tapbDiceSecure2026!@10.10.0.34:5432/tapb-dice"
 
-# Standalone Realtime Service (Socket.IO at 10.10.0.22:3001)
-NEXT_PUBLIC_SOCKET_URL="http://10.10.0.22:3001/dice"
+# Standalone Realtime Service (Socket.IO at https://socket.tapb.ch)
+NEXT_PUBLIC_SOCKET_URL="https://socket.tapb.ch/dice"
 
 # Shared JWT Secret
 JWT_SECRET="28e06b2741fa3bae4b99aae1da784394bfb2e3dc6b5bc41d23c50bad517bb73d755aecfa683c3de06be1ac9800be4106"
